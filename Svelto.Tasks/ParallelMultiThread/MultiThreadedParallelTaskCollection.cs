@@ -36,8 +36,8 @@ namespace Svelto.Tasks
         void InitializeThreadsAndData(uint numberOfThreads)
         {
             _runners       = new MultiThreadRunner[numberOfThreads];
-            _taskRoutines  = new ITaskRoutine[numberOfThreads];
-            _parallelTasks = new ParallelTaskCollection[numberOfThreads];
+            _taskRoutines  = new ITaskRoutine<IEnumerator>[numberOfThreads];
+            _parallelTasks = new ParallelTaskCollection<IEnumerator>[numberOfThreads];
 
             //prepare a single multithread runner for each group of fiber like task collections
             //number of threads can be less than the number of tasks to run
@@ -56,7 +56,7 @@ namespace Svelto.Tasks
             for (int i = 0; i < numberOfThreads; i++)
             {
                 var ptask = TaskRunner.Instance.AllocateNewTaskRoutine();
-                var ptc   = new ParallelTaskCollection("ParallelTaskCollection #".FastConcat(i));
+                var ptc   = new ParallelTaskCollection<IEnumerator>("ParallelTaskCollection #".FastConcat(i));
 
                 ptc.onComplete  += ptcOnOnComplete;
                 ptc.onException += ptcOnOnException;
@@ -81,7 +81,7 @@ namespace Svelto.Tasks
                 Action ptcOnOnComplete = DecrementStoppingThread;
                 //start them
                 for (int i = 0; i < _numberOfConcurrentOperationsToRun; i++)
-                    _taskRoutines[i].ThreadSafeStart(onStop: ptcOnOnComplete);
+                    _taskRoutines[i].Start(onStop: ptcOnOnComplete);
             }
             
             //wait for completition, I am not using signaling as this Collection could be yielded by a main thread runner
@@ -102,7 +102,7 @@ namespace Svelto.Tasks
             if (isRunning == true)
                 throw new MultiThreadedParallelTaskCollectionException("can't add tasks on a started MultiThreadedParallelTaskCollection");
 
-            ParallelTaskCollection parallelTaskCollection = _parallelTasks[_numberOfTasksAdded++ % _parallelTasks.Length];
+            ParallelTaskCollection<IEnumerator> parallelTaskCollection = _parallelTasks[_numberOfTasksAdded++ % _parallelTasks.Length];
             parallelTaskCollection.Add(enumerator);
 
             _numberOfConcurrentOperationsToRun = Math.Min(_parallelTasks.Length, _numberOfTasksAdded);
@@ -187,8 +187,8 @@ namespace Svelto.Tasks
         }
         
         MultiThreadRunner[]      _runners;
-        ParallelTaskCollection[] _parallelTasks;
-        ITaskRoutine[]           _taskRoutines;
+        ParallelTaskCollection<IEnumerator>[] _parallelTasks;
+        ITaskRoutine<IEnumerator>[]           _taskRoutines;
         
         int                           _numberOfTasksAdded;
         int                           _numberOfConcurrentOperationsToRun;

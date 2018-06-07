@@ -12,9 +12,20 @@ namespace Svelto.Tasks
      * once the task is completed, the isDone
      * value must be set to true.
      **/
-    public interface IAbstractTask
+    
+    public interface IAbstractAsyncTask
     {
-        bool		isDone { get; }
+        bool isDone { get; }
+    }
+    
+    public interface IAsyncTask:IAbstractAsyncTask
+    {
+        void Execute();
+    }
+    
+    public interface IAsyncTask<Token>:IAbstractAsyncTask
+    {
+        void Execute(ref Token token);
     }
 #if TO_IMPLEMENT_PROPERLY
     public interface ITaskProgress
@@ -22,12 +33,7 @@ namespace Svelto.Tasks
         float		progress { get; }
     }
 #endif
-    public interface ITask:IAbstractTask
-    {
-        void		Execute();	
-    }
-
-    public interface ITaskExceptionHandler
+    public interface IAsyncTaskExceptionHandler
     {
         Exception   throwException { get; }
     }

@@ -33,7 +33,7 @@ namespace Svelto.Tasks.Internal
         {
             var taskRunnerName = "TaskRunner.".FastConcat(name);
 
-            DBC.Check.Require(GameObject.Find(taskRunnerName) == null, GAMEOBJECT_ALREADY_EXISTING_ERROR);
+            DBC.Tasks.Check.Require(GameObject.Find(taskRunnerName) == null, GAMEOBJECT_ALREADY_EXISTING_ERROR);
 
             go = new GameObject(taskRunnerName);
 #if UNITY_EDITOR
@@ -118,7 +118,7 @@ namespace Svelto.Tasks.Internal
                                 var coroutine = runnerBehaviourForUnityCoroutine.StartCoroutine
                                     (handItToUnity.GetEnumerator());
 
-                                (pausableTask as PausableTask).onExplicitlyStopped = () =>
+                                pausableTask.onExplicitlyStopped = () =>
                                 {
                                     runnerBehaviourForUnityCoroutine.StopCoroutine(coroutine);
                                     handItToUnity.ForceStop();
@@ -127,19 +127,20 @@ namespace Svelto.Tasks.Internal
                                 continue;
                             }
 
-                            var parallelTask = (current as ParallelTaskCollection.ParallelTask);
+                            //only TaskCollection<IEnumerator> can return YieldInstruction 
+                            var taskCollection = current as TaskCollection<IEnumerator, object>.CollectionTask;
 
-                            if (parallelTask != null && 
-                                parallelTask.current is YieldInstruction)
+                            if (taskCollection != null && 
+                                taskCollection.current is YieldInstruction)
                             {
-                                var handItToUnity = new HandItToUnity(parallelTask.current);
+                                var handItToUnity = new HandItToUnity(taskCollection.current);
 
-                                parallelTask.Add(handItToUnity.WaitUntilIsDone());
+                                taskCollection.Add(handItToUnity.WaitUntilIsDone());
 
                                 var coroutine = runnerBehaviourForUnityCoroutine.StartCoroutine
                                     (handItToUnity.GetEnumerator());
                                 
-                                (pausableTask as PausableTask).onExplicitlyStopped = () =>
+                                pausableTask.onExplicitlyStopped = () =>
                                 {
                                     runnerBehaviourForUnityCoroutine.StopCoroutine(coroutine);
                                     handItToUnity.ForceStop();

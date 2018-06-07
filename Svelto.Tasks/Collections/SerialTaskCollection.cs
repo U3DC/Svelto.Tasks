@@ -1,169 +1,88 @@
-using System;
 using System.Collections;
 
 namespace Svelto.Tasks
 {
-    public class SerialTaskCollection: TaskCollection
+    public class SerialTaskCollection : SerialTaskCollection<IEnumerator>
     {
-        public event Action                 onComplete;
-        public event Func<Exception, bool>  onException;
-
-        public SerialTaskCollection(int size, string name = null) : base(size)
-        {
-            if (name == null)
-                _name = "SerialTaskCollection".FastConcat(GetHashCode());
-            else
-                _name = name;
-        }
-
         public SerialTaskCollection()
-        {
-            _name = "SerialTaskCollection".FastConcat(GetHashCode());
-        }
+        {}
         
-        public SerialTaskCollection(string name)
+        public SerialTaskCollection(string name):base(name)
+        {}
+
+        public SerialTaskCollection(int initialSize, string name = null) : base(initialSize, name)
+        {}
+    }
+
+    public class SerialTaskCollection<TEnumerator> : SerialTaskCollection<TEnumerator, object>
+        where TEnumerator : IEnumerator
+    {
+        public SerialTaskCollection()
+        {}
+        
+        public SerialTaskCollection(string name):base(name)
+        {}
+
+        public SerialTaskCollection(int initialSize, string name = null) : base(initialSize, name)
+        {}
+    }
+    
+    public class SerialTaskCollection<T, Token>: TaskCollection<T, Token> where T:IEnumerator
+    {
+        const int _INITIAL_STACK_COUNT = 3;
+        
+        public SerialTaskCollection():base(_INITIAL_STACK_COUNT)
+        {}
+        
+        public SerialTaskCollection(string name):base(_INITIAL_STACK_COUNT, name)
+        {}
+
+        public SerialTaskCollection(int initialSize, string name = null) : base(initialSize, name)
+        {}
+
+        public SerialTaskCollection(ref Token initialSize):base(_INITIAL_STACK_COUNT)
         {
-            _name = name;
+            throw new System.NotImplementedException();
         }
 
-        public override String ToString()
-        {
-            return _name;
-        }
-
-        public override object Current
-        {
-            get { return _current; }
-        }
-
-        public override void Reset()
-        {
-            for (int i = 0; i < base._listOfStacks.Count; i++)
-                _listOfStacks[i].Peek().Reset();
-            
-            _index = 0;
-        }
-
-        public new void Clear()
-        {
-            base.Clear();
-            
-            _index = 0;
-        }
-
-        public override bool MoveNext()
-        {
-            isRunning = true;
-
-            try
-            {
-                if (RunTasks())
-                    return true;
-                
-                if (onComplete != null)
-                    onComplete();
-            }
-            catch (Exception e)
-            {
-                if (onException != null)
-                {
-                    var mustComplete = onException(e);
-
-                    if (mustComplete)
-                    {
-                        isRunning = false;
-
-                        _index = 0;
-                    }
-                }
-
-                throw;
-            }
-            
-            isRunning = false;
-
-            _index = 0;
-
-            return false;
-        }
-
-        bool RunTasks()
+        protected override bool RunTasksAndCheckIfDone(ref int offset)
         {
             var count = _listOfStacks.Count;
-            while (_index < count)
+            while (offset < count)
             {
-                var stack = _listOfStacks[_index];
+                var stack = _listOfStacks[offset];
 
                 while (stack.Count > 0)
                 {
-                    var ce = stack.Peek(); //get the current task to execute
-                    _current = ce;
-
-                    if (ce.MoveNext() == false) //execute step and check if continue
+                    var processStackAndCheckIfDone = ProcessStackAndCheckIfDone(stack);
+                    switch (processStackAndCheckIfDone)
                     {
-                        if (ce.Current == Break.AndStop)
-                        {
-                            _current = ce.Current;
-
-                            return false;
-                        }
-
-                        if (stack.Count > 1)
-                            stack.Pop(); //task is done (the iteration is over)
-                        else
-                        {
-                            //in order to be able to reuse the task collection, we will keep the stack 
-                            //in its original state and move to the next task
-                            _index++;
+                        case TaskState.doneIt:
+                            if (stack.Count > 1)
+                                stack.Pop(); //now it can be popped, we continue the iteration
+                            else
+                            {
+                                //in order to be able to reuse the task collection, we will keep the stack 
+                                //in its original state (the original stack is not popped). 
+                                offset++; //we move to the next task
+                                goto breakInnerLoop;
+                            }
                             break;
-                        }
-                    }
-                    else //ok the iteration is not over
-                    {
-                        _current = ce.Current;
-
-                        if (_current == ce)
-                            throw new Exception("An enumerator returning itself is not supported");
-
-                        if ((ce is TaskCollection == false) 
-                            && _current != null && _current != Break.It
-                            && _current != Break.AndStop)
-                        {
-                           IEnumerator result = StandardEnumeratorCheck(_current);
-                           if (result != null)
-                           {
-                               stack.Push(result); //push the new yielded task and execute it immediately
-
-                                continue;
-                           }
-                        }
-                        else
-                        //Break.It breaks only the current task collection 
-                        //enumeration but allows the parent task to continue
-                        //yield break would instead stops only the single task
-                        if (_current == Break.It || _current == Break.AndStop)
-                        {
-                            _current = ce.Current;
-
-                            return false;
-                        }
-
-                        return true;
+                        case TaskState.breakIt:
+                            return true; //iteration done
+                        case TaskState.continueIt:
+                            //continue while loop
+                            break;
+                        case TaskState.yieldIt:
+                            return false; //yield
                     }
                 }
+                
+                breakInnerLoop:;
             }
-            return false;
+            
+            return true;
         }
-
-        internal void FastClear()
-        {
-            _listOfStacks.FastClear();
-            _index = 0;
-        }
-
-        int _index;
-        object _current;
-        string _name;
     }
 }
 

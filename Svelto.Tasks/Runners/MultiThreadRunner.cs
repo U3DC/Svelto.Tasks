@@ -83,11 +83,6 @@ namespace Svelto.Tasks
             _watch    = new Stopwatch();
         }
 
-        public void StartCoroutineThreadSafe(IPausableTask task)
-        {
-            StartCoroutine(task);
-        }
-
         public void StartCoroutine(IPausableTask task)
         {
             paused = false;

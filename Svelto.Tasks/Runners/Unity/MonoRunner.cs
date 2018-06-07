@@ -35,39 +35,13 @@ namespace Svelto.Tasks
             newTaskRoutines.Clear();
         }
 
-        public virtual void StartCoroutineThreadSafe(IPausableTask task)
+        public virtual void StartCoroutine(IPausableTask task)
         {
             paused = false;
 
             if (task == null) return;
 
             newTaskRoutines.Enqueue(task); //careful this could run on another thread!
-        }
-
-        public virtual void StartCoroutine(IPausableTask task)
-        {
-            paused = false;
-
-            if (ExecuteFirstTaskStep(task) == true)
-                newTaskRoutines.Enqueue(task); //careful this could run on another thread!
-        }
-
-        bool ExecuteFirstTaskStep(IPausableTask task)
-        {
-            if (task == null)
-                return false;
-
-            //if the runner is not ready to run new tasks, it
-            //cannot run immediatly but it must be saved
-            //in the newTaskRoutines to be executed once possible
-            if (isStopping == true)
-                return true;
-            
-#if TASKS_PROFILER_ENABLED && UNITY_EDITOR
-            return UnityCoroutineRunner.TASK_PROFILER.MonitorUpdateDuration(task, info.runnerName);
-#else
-            return task.MoveNext();
-#endif
         }
 
         public void Dispose()

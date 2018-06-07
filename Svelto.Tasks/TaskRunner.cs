@@ -1,4 +1,3 @@
-using System;
 using System.Collections;
 using Svelto.Tasks.Internal;
 
@@ -25,7 +24,12 @@ namespace Svelto.Tasks
         /// <returns>
         /// New reusable TaskRoutine
         /// </returns>
-        public ITaskRoutine AllocateNewTaskRoutine()
+        public ITaskRoutine<T> AllocateNewTaskRoutine<T>() where T:IEnumerator
+        {
+            return new PausableTask<T>().SetScheduler(_runner);
+        }
+        
+        public ITaskRoutine AllocateNewTaskRoutine() 
         {
             return new PausableTask().SetScheduler(_runner);
         }
@@ -40,9 +44,9 @@ namespace Svelto.Tasks
             _runner.paused = false;
         }
 
-        public ContinuationWrapper Run(IEnumerator task)
+        public void Run(IEnumerator task)
         {
-            return RunOnSchedule(_runner, task);
+            RunOnSchedule(_runner, task);
         }
 
         /// <summary>
@@ -51,25 +55,11 @@ namespace Svelto.Tasks
         /// <param name="runner"></param>
         /// <param name="task"></param>
         /// <returns></returns>
-        public ContinuationWrapper RunOnSchedule(IRunner runner, IEnumerator task)
+        public void RunOnSchedule(IRunner runner, IEnumerator task)
         {
-            return _taskPool.RetrieveTaskFromPool().SetScheduler(runner).SetEnumerator(task).Start();
+            _taskPool.RetrieveTaskFromPool().SetScheduler(runner).SetEnumeratorRef(ref task).Start();
         }
-
-        /// <summary>
-        /// all the instructions are executed on the selected runner
-        /// </summary>
-        /// <param name="taskGenerator"></param>
-        /// <returns></returns>
-        public ContinuationWrapper ThreadSafeRun(IEnumerator task)
-        {
-            return ThreadSafeRunOnSchedule(_runner, task);
-        }
-
-        public ContinuationWrapper ThreadSafeRunOnSchedule(IRunner runner, IEnumerator task)
-        {
-            return _taskPool.RetrieveTaskFromPool().SetScheduler(runner).SetEnumerator(task).ThreadSafeStart();
-        }
+        
 
         public static void StopAndCleanupAllDefaultSchedulers()
         {
