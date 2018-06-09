@@ -17,13 +17,6 @@ namespace Svelto.Tasks
         
         public bool  isRunning { protected set; get; }
 
-        public void Clear()
-        {
-            _listOfStacks.Clear();
-
-            _index = 0;
-        }
-        
         public TaskCollection(int initialSize, string name = null):this(initialSize)
         {
             _currentWrapper = new CollectionTask(this);
@@ -174,9 +167,13 @@ namespace Svelto.Tasks
                 
         }
 
-        internal void FastClear()
+        public void Clear()
         {
+            for (int i = 0; i < _listOfStacks.Count; i++)
+                _listOfStacks[i].Clear();
+
             _listOfStacks.FastClear();
+         
             _index = 0;
         }
 
