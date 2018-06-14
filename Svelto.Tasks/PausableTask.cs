@@ -11,7 +11,6 @@
 using Svelto.Utilities;
 using System;
 using System.Collections;
-using System.Runtime.InteropServices;
 
 namespace Svelto.Tasks
 {
@@ -484,23 +483,23 @@ namespace Svelto.Tasks.Internal
 
         void SetTask(T task)
         {
-            if (task is ITaskCollection<T> == false)
+            if (_isValueType || task is ITaskCollection<T, object> == false)
             {
                 _coroutineWrapper.Clear();
                 _coroutineWrapper.Add(task);
                 _coroutine = _coroutineWrapper;
             }
             else
-                _coroutine = task as ITaskCollection<T>;
+                _coroutine = task as ITaskCollection<T, object>;
 #if DEBUG && !PROFILER            
             _callStartFirstError = CALL_START_FIRST_ERROR.FastConcat(" task: ", ToString());
 #endif            
         }
 
         IRunner                        _runner;
-        ITaskCollection<T>             _coroutine;
-
-        readonly SerialTaskCollection<T, object> _coroutineWrapper;
+        ITaskCollection<T, object>     _coroutine;
+        
+        SerialTaskCollection<T, object> _coroutineWrapper;
         
         ContinuationWrapper           _continuationWrapper;
         ContinuationWrapper           _pendingContinuationWrapper;
@@ -527,7 +526,6 @@ namespace Svelto.Tasks.Internal
         
         string                        _callStartFirstError = string.Empty;
     
-
-        static readonly bool                _isValueType      = typeof(T).IsValueTypeEx();
+        static readonly bool          _isValueType      = typeof(T).IsValueTypeEx();
     }
 }

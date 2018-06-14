@@ -7,10 +7,10 @@ using Utility;
 
 namespace Svelto.Tasks
 {
-    public interface ITaskCollection<T>:IEnumerator
+    public interface ITaskCollection<T, Token>:IEnumerator where T:IEnumerator
     {}
     
-    public abstract class TaskCollection<T, Token>: ITaskCollection<T> where T:IEnumerator
+    public abstract class TaskCollection<T, Token>: ITaskCollection<T, Token> where T:IEnumerator
     {
         public event Action                onComplete;
         public event Func<Exception, bool> onException;
@@ -147,9 +147,7 @@ namespace Svelto.Tasks
             }
 
             if (isDone == true)
-            {
                 return TaskState.doneIt;
-            }
             
             if (returnValue == null) //if null yield until next iteration
                 return TaskState.yieldIt;

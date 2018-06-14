@@ -1,7 +1,7 @@
 using System;
 using System.Collections;
 
-namespace Svelto.Tasks.Experimental
+namespace Svelto.Tasks
 {
     public class EnumeratorWrapper<T, U>
     {
