@@ -18,23 +18,7 @@ namespace Svelto.Tasks
         {}
     }
     
-    public class ParallelTaskCollection<TEnumerator> : ParallelTaskCollection<TEnumerator, object>
-        where TEnumerator : IEnumerator
-    {
-        public ParallelTaskCollection()
-        {}
-        
-        public ParallelTaskCollection(string name):base(name)
-        {}
-
-        public ParallelTaskCollection(int initialSize, string name = null) : base(initialSize, name)
-        {}
-        
-        public ParallelTaskCollection(TEnumerator[] ptasks) : base(ptasks)
-        {}
-    }
-    
-    public class ParallelTaskCollection<T, Token>: TaskCollection<T, Token> where T:IEnumerator
+    public class ParallelTaskCollection<T>: TaskCollection<T> where T:IEnumerator
     {
         const int _INITIAL_STACK_COUNT = 3;
         
@@ -51,11 +35,6 @@ namespace Svelto.Tasks
         {
             for (int i = 0; i < ptasks.Length; i++)
                 Add(ptasks[i]);
-        }
-
-        public ParallelTaskCollection(ref Token initialSize):base(_INITIAL_STACK_COUNT)
-        {
-            throw new System.NotImplementedException();
         }
 
         protected override bool RunTasksAndCheckIfDone(ref int offset)

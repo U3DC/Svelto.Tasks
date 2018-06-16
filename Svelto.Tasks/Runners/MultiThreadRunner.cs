@@ -1,7 +1,9 @@
 using System;
+using System.Collections;
 using System.Diagnostics;
 using System.Threading;
 using Svelto.DataStructures;
+using Svelto.Tasks.Internal;
 using Svelto.Utilities;
 
 #if TASKS_PROFILER_ENABLED
@@ -15,7 +17,17 @@ namespace Svelto.Tasks
 {
     //The multithread runner always uses just one thread to run all the couroutines
     //If you want to use a separate thread, you will need to create another MultiThreadRunner
-    public sealed class MultiThreadRunner : IRunner
+    
+    public class MultiThreadRunner : MultiThreadRunner<IEnumerator>, IRunner
+    {
+        public MultiThreadRunner(string name, int intervalInMS) : base(name, intervalInMS)
+        {}
+        
+        public MultiThreadRunner(string name) : base(name)
+        {}
+    }
+        
+    public class MultiThreadRunner<T> : IRunner<T> where T:IEnumerator
     {
         public bool paused { set; get; }
 
@@ -43,14 +55,9 @@ namespace Svelto.Tasks
             Kill(null);
         }
 
-        public MultiThreadRunner(string name, bool relaxed = true)
+        public MultiThreadRunner(string name)
         {
             _mevent = new ManualResetEventEx();
-
-            if (relaxed)
-                _lockingMechanism = RelaxedLockingMechanism;
-            else
-                _lockingMechanism = QuickLockingMechanism;
 
 #if !NETFX_CORE || NET_STANDARD_2_0 || NETSTANDARD2_0
             //threadpool doesn't work well with Unity apparently
@@ -77,13 +84,13 @@ namespace Svelto.Tasks
 #endif
         }
 
-        public MultiThreadRunner(string name, int intervalInMS) : this(name, false)
+        public MultiThreadRunner(string name, int intervalInMS) : this(name)
         {
             _interval = intervalInMS;
             _watch    = new Stopwatch();
         }
 
-        public void StartCoroutine(IPausableTask task)
+        public void StartCoroutine(IPausableTask<T> task)
         {
             paused = false;
 
@@ -165,7 +172,7 @@ namespace Svelto.Tasks
                         {
                             _isAlive = false;
 
-                            _lockingMechanism();
+                            QuickLockingMechanism();
                         }
 
                         ThreadUtility.MemoryBarrier();
@@ -233,8 +240,8 @@ namespace Svelto.Tasks
             ThreadUtility.MemoryBarrier();
         }
 
-        readonly FasterList<IPausableTask>      _coroutines      = new FasterList<IPausableTask>();
-        readonly ThreadSafeQueue<IPausableTask> _newTaskRoutines = new ThreadSafeQueue<IPausableTask>();
+        readonly FasterList<IPausableTask<T>>      _coroutines      = new FasterList<IPausableTask<T>>();
+        readonly ThreadSafeQueue<IPausableTask<T>> _newTaskRoutines = new ThreadSafeQueue<IPausableTask<T>>();
 
         string _name;
         int    _interlock;
@@ -245,7 +252,6 @@ namespace Svelto.Tasks
 
         ManualResetEventEx _mevent;
 
-        readonly Action _lockingMechanism;
         readonly int    _interval;
         Stopwatch       _watch;
         Action          _onThreadKilled;

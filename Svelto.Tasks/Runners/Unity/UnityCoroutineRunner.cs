@@ -11,10 +11,10 @@ using Svelto.Tasks.Profiler;
 
 namespace Svelto.Tasks.Internal
 {
-    public static class UnityCoroutineRunner
+    public static class UnityCoroutineRunner<T> where T:IEnumerator
     {
-        public static void StandardTasksFlushing(ThreadSafeQueue<IPausableTask> newTaskRoutines, 
-            FasterList<IPausableTask> coroutines, FlushingOperation flushingOperation)
+        public static void StandardTasksFlushing(ThreadSafeQueue<IPausableTask<T>> newTaskRoutines, 
+            FasterList<IPausableTask<T>> coroutines, FlushingOperation flushingOperation)
         {
             if (newTaskRoutines.Count > 0)
                 newTaskRoutines.DequeueAllInto(coroutines);
@@ -42,8 +42,8 @@ namespace Svelto.Tasks.Internal
                 Object.DontDestroyOnLoad(go);
         }
 
-        internal static IEnumerator Process(ThreadSafeQueue<IPausableTask> newTaskRoutines,
-                                            FasterList<IPausableTask> coroutines, 
+        internal static IEnumerator Process(ThreadSafeQueue<IPausableTask<T>> newTaskRoutines,
+                                            FasterList<IPausableTask<T>> coroutines, 
                                             FlushingOperation flushingOperation,
                                             RunningTasksInfo info, 
                                             FlushTasksDel flushTaskDel)
@@ -53,13 +53,13 @@ namespace Svelto.Tasks.Internal
         }
 
         internal static IEnumerator Process(
-            ThreadSafeQueue<IPausableTask> newTaskRoutines,
-            FasterList<IPausableTask> coroutines, 
+            ThreadSafeQueue<IPausableTask<T>> newTaskRoutines,
+            FasterList<IPausableTask<T>> coroutines, 
             FlushingOperation flushingOperation,
             RunningTasksInfo info,
             FlushTasksDel flushTaskDel,
             RunnerBehaviour runnerBehaviourForUnityCoroutine,
-            Action<IPausableTask> 
+            Action<IPausableTask<T>> 
             resumeOperation)
         {
             while (true)
@@ -128,14 +128,14 @@ namespace Svelto.Tasks.Internal
                             }
 
                             //only TaskCollection<IEnumerator> can return YieldInstruction 
-                            var taskCollection = current as TaskCollection<IEnumerator, object>.CollectionTask;
+                            var taskCollection = current.current;
 
-                            if (taskCollection != null && 
-                                taskCollection.current is YieldInstruction)
+                            if (taskCollection is YieldInstruction)
                             {
-                                var handItToUnity = new HandItToUnity(taskCollection.current);
+                                var handItToUnity = new HandItToUnity(taskCollection);
 
-                                taskCollection.Add(handItToUnity.WaitUntilIsDone());
+                                //questo deve cambiare
+                                current.Add((T) handItToUnity.WaitUntilIsDone());
 
                                 var coroutine = runnerBehaviourForUnityCoroutine.StartCoroutine
                                     (handItToUnity.GetEnumerator());
@@ -182,8 +182,8 @@ namespace Svelto.Tasks.Internal
             public string runnerName;
         }
 
-        internal delegate void FlushTasksDel(ThreadSafeQueue<IPausableTask> 
-            newTaskRoutines, FasterList<IPausableTask> coroutines, 
+        internal delegate void FlushTasksDel(ThreadSafeQueue<IPausableTask<T>> 
+            newTaskRoutines, FasterList<IPausableTask<T>> coroutines, 
             FlushingOperation flushingOperation);
 
         public class FlushingOperation
@@ -194,8 +194,8 @@ namespace Svelto.Tasks.Internal
         struct HandItToUnity
         {
             public HandItToUnity(object current,
-                IPausableTask task,
-                Action<IPausableTask> resumeOperation,
+                IPausableTask<T> task,
+                Action<IPausableTask<T>> resumeOperation,
                 FlushingOperation flush)
             {
                 _current = current;
@@ -238,8 +238,8 @@ namespace Svelto.Tasks.Internal
             }
 
             readonly object                _current;
-            readonly IPausableTask         _task;
-            readonly Action<IPausableTask> _resumeOperation;
+            readonly IPausableTask<T>         _task;
+            readonly Action<IPausableTask<T>> _resumeOperation;
 
             bool              _isDone;
             FlushingOperation _flushingOperation;

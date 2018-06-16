@@ -1,5 +1,6 @@
 #if UNITY_5 || UNITY_5_3_OR_NEWER
 
+using System.Collections;
 using Svelto.DataStructures;
 using Svelto.Tasks.Internal;
 using UnityEngine;
@@ -10,16 +11,16 @@ using Svelto.Tasks.Profiler;
 
 namespace Svelto.Tasks
 {
-    public abstract class MonoRunner : IRunner
+    public abstract class MonoRunner<T> : IRunner<T> where T:IEnumerator
     {
         public bool paused { set; get; }
         public bool isStopping { get { return flushingOperation.stopped; } }
         
         public int  numberOfRunningTasks { get { return info.count; } }
 
-        protected abstract UnityCoroutineRunner.RunningTasksInfo info { get; }
-        protected abstract ThreadSafeQueue<IPausableTask> newTaskRoutines { get; }
-        protected abstract UnityCoroutineRunner.FlushingOperation flushingOperation { get; }
+        protected abstract UnityCoroutineRunner<T>.RunningTasksInfo info { get; }
+        protected abstract ThreadSafeQueue<IPausableTask<T>> newTaskRoutines { get; }
+        protected abstract UnityCoroutineRunner<T>.FlushingOperation flushingOperation { get; }
         protected GameObject _go;
         
         /// <summary>
@@ -30,12 +31,12 @@ namespace Svelto.Tasks
         {
             paused = false;
 
-            UnityCoroutineRunner.StopRoutines(flushingOperation);
+            UnityCoroutineRunner<T>.StopRoutines(flushingOperation);
 
             newTaskRoutines.Clear();
         }
 
-        public virtual void StartCoroutine(IPausableTask task)
+        public virtual void StartCoroutine(IPausableTask<T> task)
         {
             paused = false;
 

@@ -3,14 +3,19 @@ using System.Collections;
 using System.Collections.Generic;
 using Svelto.DataStructures;
 using Svelto.Tasks.Internal;
-using Utility;
 
 namespace Svelto.Tasks
 {
-    public interface ITaskCollection<T, Token>:IEnumerator where T:IEnumerator
+    public interface ITaskCollection<T>:IEnumerator<TaskCollection<T>.CollectionTask> where T:IEnumerator
     {}
     
-    public abstract class TaskCollection<T, Token>: ITaskCollection<T, Token> where T:IEnumerator
+    public abstract class TaskCollection:TaskCollection<IEnumerator>
+    {
+        protected TaskCollection(int initialSize, string name = null) : base(initialSize, name)
+        {}
+    }
+    
+    public abstract class TaskCollection<T>:ITaskCollection<T> where T:IEnumerator
     {
         public event Action                onComplete;
         public event Func<Exception, bool> onException;
@@ -36,6 +41,9 @@ namespace Svelto.Tasks
         {
             return _name;
         }
+
+        public void Dispose()
+        {}
 
         public bool MoveNext()
         {
@@ -67,24 +75,17 @@ namespace Svelto.Tasks
             return false;
         }
 
-        protected IEnumerator CreateTaskWrapper(IAbstractAsyncTask task)
+        protected IEnumerator CreateTaskWrapper(IAsyncTask task)
         {
-            return new AsyncTaskWrapper<Token>(task);
+            return new AsyncTaskWrapper(task);
         }
         
-        void SetToken(ActionRef<Token, IAbstractAsyncTask> action, IAbstractAsyncTask asyncTask)
+        public TaskCollection<T> Add(IAsyncTask asyncTask)
         {
-            action(ref _token, ref asyncTask);
-        }
-        
-        public TaskCollection<T, Token> Add(IAbstractAsyncTask asyncTask)
-        {
-            var asyncTaskWrapper = new AsyncTaskWrapper<Token>(asyncTask, SetToken);
-            
-            return Add((T)(IEnumerator) asyncTaskWrapper);
+            return Add((T) CreateTaskWrapper(asyncTask));
         }
 
-        public TaskCollection<T, Token> Add(T enumerator)
+        public TaskCollection<T> Add(T enumerator)
         {
             {
                 Stack<StackWrapper> stack;
@@ -100,7 +101,12 @@ namespace Svelto.Tasks
             return this;
         }
         
-        public object Current
+        object IEnumerator.Current
+        {
+            get { return _currentWrapper; }
+        }
+        
+        public CollectionTask Current
         {
             get { return _currentWrapper; }
         }
@@ -120,7 +126,7 @@ namespace Svelto.Tasks
 
             _index = 0;
         }
-        
+
         protected abstract bool RunTasksAndCheckIfDone(ref int offset);
 
         protected enum TaskState
@@ -136,30 +142,33 @@ namespace Svelto.Tasks
             var ce = stack.Peek(); //get the current task to execute
             
             bool isDone      = !ce.enumerator.MoveNext();
-            var  returnValue = ce.enumerator.Current;
+            _currentWrapper.current = ce.enumerator.Current;
             
-            if (returnValue == Break.It || returnValue == Break.AndStop)
-            {
-                //fallo funzionare con parallelo
-                _currentWrapper.breakIt = (Break) returnValue;
-
-                return TaskState.breakIt;
-            }
-
             if (isDone == true)
                 return TaskState.doneIt;
-            
-            if (returnValue == null) //if null yield until next iteration
-                return TaskState.yieldIt;
 
-            if (returnValue is IAsyncTask)
-                returnValue = CreateTaskWrapper(returnValue as IAsyncTask);
+            {
+                object returnObject = _currentWrapper.current;
+                if (returnObject == Break.It || returnObject == Break.AndStop)
+                {
+                    _currentWrapper.breakIt = (Break) returnObject;
 
-            if (returnValue is ITaskRoutine<T>)
-                returnValue = (returnValue as ITaskRoutine<T>).Start();
-            
-            if (returnValue is T)
-                stack.Push(new StackWrapper((T)returnValue)); //push the new yielded task and execute it immediately
+                    return TaskState.breakIt;
+                }
+                
+                if (returnObject == null) //if null yield until next iteration
+                    return TaskState.yieldIt;
+                
+                if (returnObject is IAsyncTask)
+                    returnObject = CreateTaskWrapper(returnObject as IAsyncTask);
+
+                if (returnObject is ITaskRoutine<T>)
+                    returnObject = (returnObject as ITaskRoutine<T>).Start();
+                
+                if (returnObject is T)
+                    stack.Push(new StackWrapper((T)returnObject)); //push the new yielded task and execute it immediately
+            }
+            //if I continue down this route a TValue must be returned for last therefore it must be done
 
             return TaskState.continueIt;
                 
@@ -179,11 +188,11 @@ namespace Svelto.Tasks
 
         const int _INITIAL_STACK_SIZE = 1;
 
-        internal class CollectionTask
+        public class CollectionTask
         {
-            public object current {  get {  return _parent.Current; } }
+            public object current { get; internal set; }
 
-            public CollectionTask(TaskCollection<T, Token> parent)
+            public CollectionTask(TaskCollection<T> parent)
             {
                 _parent = parent;
             }
@@ -193,11 +202,11 @@ namespace Svelto.Tasks
                 _parent.Add(task);
             }
 
-            readonly TaskCollection<T, Token> _parent;
+            readonly TaskCollection<T> _parent;
             public Break breakIt { internal set; get; }
         }
 
-        readonly CollectionTask _currentWrapper;
+        CollectionTask _currentWrapper;
         readonly string         _name;
 
         protected struct StackWrapper
@@ -211,7 +220,6 @@ namespace Svelto.Tasks
         }
 
         int _index;
-        Token _token;
     }
 }
 

@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 
 namespace Svelto.Tasks
 {
@@ -14,20 +15,7 @@ namespace Svelto.Tasks
         {}
     }
 
-    public class SerialTaskCollection<TEnumerator> : SerialTaskCollection<TEnumerator, object>
-        where TEnumerator : IEnumerator
-    {
-        public SerialTaskCollection()
-        {}
-        
-        public SerialTaskCollection(string name):base(name)
-        {}
-
-        public SerialTaskCollection(int initialSize, string name = null) : base(initialSize, name)
-        {}
-    }
-    
-    public class SerialTaskCollection<T, Token>: TaskCollection<T, Token> where T:IEnumerator
+    public class SerialTaskCollection<T>: TaskCollection<T> where T:IEnumerator
     {
         const int _INITIAL_STACK_COUNT = 3;
         
@@ -39,11 +27,6 @@ namespace Svelto.Tasks
 
         public SerialTaskCollection(int initialSize, string name = null) : base(initialSize, name)
         {}
-
-        public SerialTaskCollection(ref Token initialSize):base(_INITIAL_STACK_COUNT)
-        {
-            throw new System.NotImplementedException();
-        }
 
         protected override bool RunTasksAndCheckIfDone(ref int offset)
         {

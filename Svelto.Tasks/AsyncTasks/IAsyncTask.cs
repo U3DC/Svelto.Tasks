@@ -13,26 +13,13 @@ namespace Svelto.Tasks
      * value must be set to true.
      **/
     
-    public interface IAbstractAsyncTask
+    public interface IAsyncTask
     {
         bool isDone { get; }
-    }
-    
-    public interface IAsyncTask:IAbstractAsyncTask
-    {
+        
         void Execute();
     }
     
-    public interface IAsyncTask<Token>:IAbstractAsyncTask
-    {
-        void Execute(ref Token token);
-    }
-#if TO_IMPLEMENT_PROPERLY
-    public interface ITaskProgress
-    {
-        float		progress { get; }
-    }
-#endif
     public interface IAsyncTaskExceptionHandler
     {
         Exception   throwException { get; }

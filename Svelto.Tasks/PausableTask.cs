@@ -11,6 +11,7 @@
 using Svelto.Utilities;
 using System;
 using System.Collections;
+using System.Collections.Generic;
 
 namespace Svelto.Tasks
 {
@@ -21,11 +22,6 @@ namespace Svelto.Tasks
         { }
     }
 
-    public interface IPausableTask:IEnumerator
-    {
-        Action onExplicitlyStopped { set; }
-    }
-    
     public class ContinuationWrapper:IEnumerator
     {
         public bool MoveNext()
@@ -76,33 +72,17 @@ namespace Svelto.Tasks
 
 }
 
+public interface IPausableTask:IEnumerator
+{
+    Action onExplicitlyStopped { set; }
+}
+    
 namespace Svelto.Tasks.Internal
 {
-    class PausableTask : PausableTask<IEnumerator>, ITaskRoutine
-    {
-        public new ITaskRoutine SetScheduler(IRunner runner)
-        {
-            base.SetScheduler(runner);
-
-            return this;
-        }
-
-        public new  ITaskRoutine SetEnumeratorProvider(Func<IEnumerator> taskGenerator)
-        {
-            base.SetEnumeratorProvider(taskGenerator);
-
-            return this;
-        }
-        
-        public new  ITaskRoutine SetEnumerator(IEnumerator taskEnumerator)
-        {
-            base.SetEnumerator(taskEnumerator);
-
-            return this;
-        }
-    }
+    public interface IPausableTask<T>:IPausableTask, IEnumerator<TaskCollection<T>.CollectionTask> where T:IEnumerator
+    {}
     
-    class PausableTask<T> : IPausableTask, ITaskRoutine<T> where T:IEnumerator
+    class PausableTask<T> : IPausableTask<T>, ITaskRoutine<T> where T:IEnumerator
     {    
         const string CALL_START_FIRST_ERROR = "Enumerating PausableTask without starting it, please call Start() first";
 
@@ -115,7 +95,7 @@ namespace Svelto.Tasks.Internal
         /// </summary>
         /// <param name="runner"></param>
         /// <returns></returns>
-        public ITaskRoutine<T> SetScheduler(IRunner runner)
+        public ITaskRoutine<T> SetScheduler(IRunner<T> runner)
         {
             _runner = runner;
 
@@ -222,7 +202,10 @@ namespace Svelto.Tasks.Internal
 
             return _name;
         }
-        
+
+        public void Dispose()
+        {}
+
         public bool isTaskEnumeratorValid
         {
             get { return _isValueType || _taskEnumerator != null; }
@@ -281,7 +264,7 @@ namespace Svelto.Tasks.Internal
                     _completed = !_coroutine.MoveNext();
                     ThreadUtility.MemoryBarrier();
                     
-                    var current = _coroutine.Current;
+                    var current = _coroutine.Current.breakIt;
                     if (current == Break.It ||
                         current == Break.AndStop)
                     {
@@ -311,7 +294,7 @@ namespace Svelto.Tasks.Internal
                 if (_pool != null)
                 {
                     DBC.Tasks.Check.Assert(_pendingRestart == false, "a pooled task cannot have a pending restart!");
-                    
+
                     _pool.PushTaskBack(this as PausableTask<IEnumerator>);
                 }
                 else
@@ -360,6 +343,11 @@ namespace Svelto.Tasks.Internal
             _name = string.Empty;
         }
 
+        TaskCollection<T>.CollectionTask IEnumerator<TaskCollection<T>.CollectionTask>.Current
+        {
+            get { return _coroutine.Current; }
+        }
+
         /// <summary>
         /// Clean up task on complete
         /// This function doesn't need to
@@ -404,7 +392,7 @@ namespace Svelto.Tasks.Internal
 
         internal PausableTask(PausableTaskPool pool)
         {
-            _coroutineWrapper = new SerialTaskCollection<T, object>(1);
+            _coroutineWrapper = new SerialTaskCollection<T>(1);
             _pool = pool;
             
             Reset();
@@ -412,7 +400,7 @@ namespace Svelto.Tasks.Internal
 
         internal PausableTask()
         {
-            _coroutineWrapper = new SerialTaskCollection<T, object>(1);
+            _coroutineWrapper = new SerialTaskCollection<T>(1);
             _continuationWrapper = new ContinuationWrapper();
 
             Reset();
@@ -483,23 +471,23 @@ namespace Svelto.Tasks.Internal
 
         void SetTask(T task)
         {
-            if (_isValueType || task is ITaskCollection<T, object> == false)
+            if (_isValueType || task is ITaskCollection<T> == false)
             {
                 _coroutineWrapper.Clear();
                 _coroutineWrapper.Add(task);
                 _coroutine = _coroutineWrapper;
             }
             else
-                _coroutine = task as ITaskCollection<T, object>;
+                _coroutine = task as ITaskCollection<T>;
 #if DEBUG && !PROFILER            
             _callStartFirstError = CALL_START_FIRST_ERROR.FastConcat(" task: ", ToString());
 #endif            
         }
 
-        IRunner                        _runner;
-        ITaskCollection<T, object>     _coroutine;
+        IRunner<T> _runner;
+        ITaskCollection<T>             _coroutine;
         
-        SerialTaskCollection<T, object> _coroutineWrapper;
+        SerialTaskCollection<T>         _coroutineWrapper;
         
         ContinuationWrapper           _continuationWrapper;
         ContinuationWrapper           _pendingContinuationWrapper;
@@ -525,7 +513,7 @@ namespace Svelto.Tasks.Internal
         volatile bool                 _pendingRestart;
         
         string                        _callStartFirstError = string.Empty;
-    
+
         static readonly bool          _isValueType      = typeof(T).IsValueTypeEx();
     }
 }

@@ -1,4 +1,6 @@
 
+using System.Collections;
+using Svelto.Tasks.Internal;
 using Svelto.Utilities;
 
 namespace Svelto.Tasks
@@ -7,17 +9,16 @@ namespace Svelto.Tasks
     //the Sync runner, it will stall the current thread!
     //Depending by the case, it may be better to
     //use the ManualResetEventEx synchronization instead.
-    public class SyncRunner : IRunner
+
+    public class SyncRunner : SyncRunner<IEnumerator>, IRunner
+    {}
+
+    public class SyncRunner<T> : IRunner<T> where T:IEnumerator
     {
         public bool paused { set; get; }
         public bool isStopping { private set; get; }
 
-        public void StartCoroutineThreadSafe(IPausableTask task)
-        {
-            StartCoroutine(task);
-        }
-
-        public void StartCoroutine(IPausableTask task)
+        public void StartCoroutine(IPausableTask<T> task)
         {
             while (task.MoveNext() == true) ThreadUtility.Yield();
         }

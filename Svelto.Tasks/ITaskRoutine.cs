@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 
 //ITaskRoutine allocated explcitly have several features not 
 //available on task started implicitly with the extension
@@ -23,18 +24,14 @@ using System.Collections;
 namespace Svelto.Tasks
 {
     public interface ITaskRoutine : ITaskRoutine<IEnumerator>
-    {
-        new ITaskRoutine SetEnumeratorProvider(Func<IEnumerator> taskGenerator);
-        new ITaskRoutine SetEnumerator(IEnumerator               taskGenerator);
-        new ITaskRoutine SetScheduler(IRunner          runner);
-    }
+    {}
     
     public interface ITaskRoutine<T> where T:IEnumerator
     {
         ITaskRoutine<T> SetEnumeratorProvider(Func<T> taskGenerator);
         ITaskRoutine<T> SetEnumerator(T taskGenerator);
         ITaskRoutine<T> SetEnumeratorRef(ref T taskGenerator);
-        ITaskRoutine<T> SetScheduler(IRunner runner);
+        ITaskRoutine<T> SetScheduler(IRunner<T> runner);
 
         ContinuationWrapper Start(Action<PausableTaskException> onFail = null, Action onStop = null);
      
