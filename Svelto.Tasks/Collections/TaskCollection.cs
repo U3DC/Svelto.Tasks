@@ -6,30 +6,31 @@ using Svelto.Tasks.Internal;
 
 namespace Svelto.Tasks
 {
-    public interface ITaskCollection<T>:IEnumerator<TaskCollection<T>.CollectionTask> where T:IEnumerator
-    {}
-    
-    public abstract class TaskCollection:TaskCollection<IEnumerator>
+    public interface ITaskCollection<T> : IEnumerator<TaskCollection<T>.CollectionTask>, IEnumerator<T>
+        where T : IEnumerator
     {
-        protected TaskCollection(int initialSize, string name = null) : base(initialSize, name)
-        {}
+        event Action                onComplete;
+        event Func<Exception, bool> onException;
+        
+        TaskCollection<T> Add(IAsyncTask asyncTask);
+        TaskCollection<T> Add(T          enumerator);
+        void              Clear();
+        
+        bool isRunning { get; }
     }
-    
+
     public abstract class TaskCollection<T>:ITaskCollection<T> where T:IEnumerator
     {
         public event Action                onComplete;
         public event Func<Exception, bool> onException;
         
-        public bool  isRunning { protected set; get; }
+        public bool  isRunning { private set; get; }
 
-        public TaskCollection(int initialSize, string name = null):this(initialSize)
+        protected TaskCollection(int initialSize, string name = null):this(initialSize)
         {
-            _currentWrapper = new CollectionTask(this);
-            
-            if (name == null)
-                _name = GetType().Name.FastConcat(GetHashCode());
-            else
-                _name = name;
+            Current = new CollectionTask(this);
+
+            _name = name ?? GetType().Name.FastConcat(GetHashCode());
         }
         
         TaskCollection(int initialSize)
@@ -44,6 +45,11 @@ namespace Svelto.Tasks
 
         public void Dispose()
         {}
+
+        bool IEnumerator.MoveNext()
+        {
+            return MoveNext();
+        }
 
         public bool MoveNext()
         {
@@ -75,45 +81,39 @@ namespace Svelto.Tasks
             return false;
         }
 
-        protected IEnumerator CreateTaskWrapper(IAsyncTask task)
-        {
-            return new AsyncTaskWrapper(task);
-        }
-        
         public TaskCollection<T> Add(IAsyncTask asyncTask)
         {
-            return Add((T) CreateTaskWrapper(asyncTask));
+            return Add((T)new AsyncTaskWrapper(asyncTask));
         }
 
         public TaskCollection<T> Add(T enumerator)
         {
-            {
-                Stack<StackWrapper> stack;
-                if (_listOfStacks.Reuse(_listOfStacks.Count, out stack) == false)
-                    stack = new Stack<StackWrapper>(_INITIAL_STACK_SIZE);
-                else
-                    stack.Clear();
+            Stack<StackWrapper> stack;
+            if (_listOfStacks.Reuse(_listOfStacks.Count, out stack) == false)
+                stack = new Stack<StackWrapper>(_INITIAL_STACK_SIZE);
+            else
+                stack.Clear();
 
-                stack.Push(new StackWrapper(enumerator));
-                _listOfStacks.Add(stack);
-            }
+            stack.Push(new StackWrapper(enumerator));
+            _listOfStacks.Add(stack);
 
             return this;
         }
         
-        object IEnumerator.Current
-        {
-            get { return _currentWrapper; }
-        }
-        
-        public CollectionTask Current
-        {
-            get { return _currentWrapper; }
-        }
+        object IEnumerator.Current => Current;
+
+        public CollectionTask Current { get; }
 
         /// <summary>
         /// Restore the list of stacks to their original state
         /// </summary>
+        void IEnumerator.Reset()
+        {
+            Reset();
+        }
+
+        T IEnumerator<T>.Current { get; }
+
         public void Reset()
         {
             var count = _listOfStacks.Count;
@@ -142,16 +142,16 @@ namespace Svelto.Tasks
             var ce = stack.Peek(); //get the current task to execute
             
             bool isDone      = !ce.enumerator.MoveNext();
-            _currentWrapper.current = ce.enumerator.Current;
+            Current.current = ce.enumerator.Current;
             
             if (isDone == true)
                 return TaskState.doneIt;
 
             {
-                object returnObject = _currentWrapper.current;
+                object returnObject = Current.current;
                 if (returnObject == Break.It || returnObject == Break.AndStop)
                 {
-                    _currentWrapper.breakIt = (Break) returnObject;
+                    Current.breakIt = (Break) returnObject;
 
                     return TaskState.breakIt;
                 }
@@ -160,7 +160,7 @@ namespace Svelto.Tasks
                     return TaskState.yieldIt;
                 
                 if (returnObject is IAsyncTask)
-                    returnObject = CreateTaskWrapper(returnObject as IAsyncTask);
+                    returnObject = (T)new AsyncTaskWrapper(returnObject as IAsyncTask);
 
                 if (returnObject is ITaskRoutine<T>)
                     returnObject = (returnObject as ITaskRoutine<T>).Start();
@@ -206,7 +206,6 @@ namespace Svelto.Tasks
             public Break breakIt { internal set; get; }
         }
 
-        CollectionTask _currentWrapper;
         readonly string         _name;
 
         protected struct StackWrapper

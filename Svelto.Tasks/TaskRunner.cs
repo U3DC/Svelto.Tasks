@@ -31,7 +31,7 @@ namespace Svelto.Tasks
         
         public ITaskRoutine AllocateNewTaskRoutine() 
         {
-            return (ITaskRoutine) new PausableTask<IEnumerator>().SetScheduler(_runner);
+            return new PausableTask().SetScheduler(_runner);
         }
 
         public void PauseAllTasks()
@@ -44,6 +44,11 @@ namespace Svelto.Tasks
             _runner.paused = false;
         }
 
+        public void Run<T>(T task) where T:class, IEnumerator
+        {
+            RunOnSchedule(_runner, task);
+        }
+        
         public void Run(IEnumerator task)
         {
             RunOnSchedule(_runner, task);
@@ -55,9 +60,14 @@ namespace Svelto.Tasks
         /// <param name="runner"></param>
         /// <param name="task"></param>
         /// <returns></returns>
+        public void RunOnSchedule<T>(IRunner<T> runner, T task) where T:class, IEnumerator
+        {
+            AllocateNewTaskRoutine<T>().SetScheduler(runner).SetEnumeratorRef(ref task).Start();
+        }
+
         public void RunOnSchedule(IRunner runner, IEnumerator task)
         {
-            _taskPool.RetrieveTaskFromPool().SetScheduler(runner).SetEnumeratorRef(ref task).Start();
+            _taskPool.RetrieveTaskFromPool().SetScheduler(runner).SetEnumerator(task).Start();
         }
 
         public static void StopAndCleanupAllDefaultSchedulers()

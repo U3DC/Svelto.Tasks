@@ -81,11 +81,28 @@ namespace Svelto.Tasks.Internal
 {
     public interface IPausableTask<T>:IPausableTask, IEnumerator<TaskCollection<T>.CollectionTask> where T:IEnumerator
     {}
-    
-    class PausableTask<T> : IPausableTask<T>, ITaskRoutine<T> where T:IEnumerator
-    {    
-        const string CALL_START_FIRST_ERROR = "Enumerating PausableTask without starting it, please call Start() first";
 
+    class PausableTask : PausableTask<IEnumerator>, ITaskRoutine
+    {
+        public PausableTask(PausableTaskPool pausableTaskPool):base(pausableTaskPool)
+        {}
+
+        public PausableTask()
+        {}
+
+        public ITaskRoutine SetScheduler(IRunner runner)
+        {
+            base.SetScheduler(runner);
+            
+            return this;
+        }
+    }
+
+    class PausableTask<T> : IPausableTask<T>, ITaskRoutine<T> where T:IEnumerator
+    {
+#if DEBUG && !PROFILER        
+        const string CALL_START_FIRST_ERROR = "Enumerating PausableTask without starting it, please call Start() first";
+#endif
         public Action onExplicitlyStopped { private get; set; }
 
         /// <summary>
@@ -101,7 +118,7 @@ namespace Svelto.Tasks.Internal
 
             return this;
         }
-
+        
         public ITaskRoutine<T> SetEnumeratorProvider(Func<T> taskGenerator)
         {
             _taskEnumerator = default(T);
@@ -113,12 +130,9 @@ namespace Svelto.Tasks.Internal
         public ITaskRoutine<T> SetEnumeratorRef(ref T taskEnumerator)
         {
             _taskGenerator = null;
-            if (default(T) == null && (IEnumerator)_taskEnumerator == (IEnumerator)taskEnumerator)
-                _taskEnumeratorJustSet = _taskEnumeratorJustSet;
-            else
-            {
+            if (!(default(T) == null && (IEnumerator)_taskEnumerator == (IEnumerator)taskEnumerator))
                 _taskEnumeratorJustSet = true;
-            }
+
             _taskEnumerator = taskEnumerator;
 #if DEBUG && !PROFILER
             _compilerGenerated = taskEnumerator.GetType().IsCompilerGenerated();
@@ -302,7 +316,7 @@ namespace Svelto.Tasks.Internal
                 {
                     DBC.Tasks.Check.Assert(_pendingRestart == false, "a pooled task cannot have a pending restart!");
 
-                    _pool.PushTaskBack(this as PausableTask<IEnumerator<object>>);
+                    _pool.PushTaskBack(this as PausableTask);
                 }
                 else
                 //TaskRoutine case only!! This is the most risky part of this code
@@ -476,7 +490,7 @@ namespace Svelto.Tasks.Internal
         IRunner<T> _runner;
         ITaskCollection<T>             _coroutine;
         
-        SerialTaskCollection<T>         _coroutineWrapper;
+        SerialTaskCollection<T>        _coroutineWrapper;
         
         ContinuationWrapper           _continuationWrapper;
         ContinuationWrapper           _pendingContinuationWrapper;

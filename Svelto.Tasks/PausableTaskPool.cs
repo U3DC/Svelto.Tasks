@@ -1,36 +1,31 @@
-using System.Collections;
 using Svelto.DataStructures;
 
 namespace Svelto.Tasks.Internal
 {
     sealed class PausableTaskPool
     {
-        public PausableTask<IEnumerator> RetrieveTaskFromPool()
+        public PausableTask RetrieveTaskFromPool()
         {
-            PausableTask<IEnumerator> task;
+            PausableTask task;
 
             if (_pool.Dequeue(out task))
-            {
-                task.Reset();
-
                 return task;
-            }
 
             return CreateEmptyTask();
         }
 
-        public void PushTaskBack(PausableTask<IEnumerator> task)
+        public void PushTaskBack(PausableTask task)
         {
-            task.CleanUpOnRecycle(); //let's avoid leakings
+            task.Reset();
 
             _pool.Enqueue(task);
         }
 
-        PausableTask<IEnumerator> CreateEmptyTask()
+        PausableTask CreateEmptyTask()
         {
-            return new PausableTask<IEnumerator>(this);
+            return new PausableTask(this);
         }
 
-        readonly LockFreeQueue<PausableTask<IEnumerator>> _pool = new LockFreeQueue<PausableTask<IEnumerator>>();
+        readonly LockFreeQueue<PausableTask> _pool = new LockFreeQueue<PausableTask>();
     }
 }

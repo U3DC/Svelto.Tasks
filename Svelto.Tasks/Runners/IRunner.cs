@@ -4,17 +4,18 @@ using Svelto.Tasks.Internal;
 
 namespace Svelto.Tasks
 {
-    public interface IRunner : IRunner<IEnumerator>
-    {}
-    
-    public interface IRunner<T>: IDisposable where T:IEnumerator
+    public interface IRunner : IDisposable
     {
-        bool    paused { get; set; }
-        bool    isStopping { get; }
+        bool paused     { get; set; }
+        bool isStopping { get; }
 
-        void	StartCoroutine(IPausableTask<T> task);
-        void 	StopAllCoroutines();
+        void StopAllCoroutines();
 
         int numberOfRunningTasks { get; }
+    }
+    
+    public interface IRunner<T>: IRunner where T:IEnumerator
+    {
+        void	StartCoroutine(IPausableTask<T> task);
     }
 }

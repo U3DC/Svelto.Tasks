@@ -16,7 +16,6 @@ namespace Svelto.Tasks.Internal
             DBC.Tasks.Check.Ensure(asyncTask != null, "a valid task must be assigned");
         }
         
-
         public bool MoveNext()
         {
             if (_started == false)
