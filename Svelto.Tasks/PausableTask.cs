@@ -113,8 +113,12 @@ namespace Svelto.Tasks.Internal
         public ITaskRoutine<T> SetEnumeratorRef(ref T taskEnumerator)
         {
             _taskGenerator = null;
-            if (_isValueType || (IEnumerator)_taskEnumerator != (IEnumerator)taskEnumerator)
+            if (default(T) == null && (IEnumerator)_taskEnumerator == (IEnumerator)taskEnumerator)
+                _taskEnumeratorJustSet = _taskEnumeratorJustSet;
+            else
+            {
                 _taskEnumeratorJustSet = true;
+            }
             _taskEnumerator = taskEnumerator;
 #if DEBUG && !PROFILER
             _compilerGenerated = taskEnumerator.GetType().IsCompilerGenerated();
@@ -208,7 +212,10 @@ namespace Svelto.Tasks.Internal
 
         public bool isTaskEnumeratorValid
         {
-            get { return _isValueType || _taskEnumerator != null; }
+            get { if (default(T) == null)
+                    return _taskEnumerator != null;
+                return true;
+            }
         }
 
         /// <summary>
@@ -295,7 +302,7 @@ namespace Svelto.Tasks.Internal
                 {
                     DBC.Tasks.Check.Assert(_pendingRestart == false, "a pooled task cannot have a pending restart!");
 
-                    _pool.PushTaskBack(this as PausableTask<IEnumerator>);
+                    _pool.PushTaskBack(this as PausableTask<IEnumerator<object>>);
                 }
                 else
                 //TaskRoutine case only!! This is the most risky part of this code
@@ -331,16 +338,26 @@ namespace Svelto.Tasks.Internal
         /// </summary>
         public void Reset()
         {
-            CleanUpOnRecycle();
-
-            _paused = false;
+            DBC.Tasks.Check.Require(_pool != null, "Reset can run only on a pooled PausableTask");
+            
+            _paused                = false;
             _taskEnumeratorJustSet = false;
-            _completed = false;
-            _started = false;
-            _explicitlyStopped = false;
-            _compilerGenerated = false;
-            _pendingRestart = false;
-            _name = string.Empty;
+            _completed             = false;
+            _started               = false;
+            _explicitlyStopped     = false;
+            _compilerGenerated     = false;
+            _pendingRestart        = false;
+            _name                  = string.Empty;
+            
+            _pendingEnumerator = default(T);
+            _taskGenerator     = null;
+            _taskEnumerator    = default(T);
+            _runner            = null;
+            _onFail            = null;
+            _onStop            = null;
+
+            _coroutineWrapper.Clear();
+            
         }
 
         TaskCollection<T>.CollectionTask IEnumerator<TaskCollection<T>.CollectionTask>.Current
@@ -348,32 +365,8 @@ namespace Svelto.Tasks.Internal
             get { return _coroutine.Current; }
         }
 
-        /// <summary>
-        /// Clean up task on complete
-        /// This function doesn't need to
-        /// reset any state, is only to
-        /// release resources!!!
-        /// </summary>
-        internal void CleanUpOnRecycle()
-        {
-            _pendingEnumerator = default(T);
-            _taskGenerator = null;
-            _taskEnumerator = default(T);
-            _runner = null;
-            _onFail = null;
-            _onStop = null;
-
-            _coroutineWrapper.Clear();
-        }
-
-        /// <summary>
-        /// Clean up task on Restart 
-        /// can happen only through ITaskRoutine
-        /// </summary>
         void CleanUpOnRestart()
         {
-            DBC.Tasks.Check.Require(_pool == null, "CleanUpOnRestart can run only on not pooled TaskRoutine");
-            
             _paused = false;
             _taskEnumeratorJustSet = false;
             _completed = false;
@@ -394,16 +387,12 @@ namespace Svelto.Tasks.Internal
         {
             _coroutineWrapper = new SerialTaskCollection<T>(1);
             _pool = pool;
-            
-            Reset();
         }
 
         internal PausableTask()
         {
             _coroutineWrapper = new SerialTaskCollection<T>(1);
             _continuationWrapper = new ContinuationWrapper();
-
-            Reset();
         }
 
         /// <summary>
@@ -471,7 +460,7 @@ namespace Svelto.Tasks.Internal
 
         void SetTask(T task)
         {
-            if (_isValueType || task is ITaskCollection<T> == false)
+            if (task is ITaskCollection<T> == false)
             {
                 _coroutineWrapper.Clear();
                 _coroutineWrapper.Add(task);
@@ -513,7 +502,5 @@ namespace Svelto.Tasks.Internal
         volatile bool                 _pendingRestart;
         
         string                        _callStartFirstError = string.Empty;
-
-        static readonly bool          _isValueType      = typeof(T).IsValueTypeEx();
     }
 }

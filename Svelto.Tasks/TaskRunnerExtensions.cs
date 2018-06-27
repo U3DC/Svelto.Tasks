@@ -1,20 +1,21 @@
 using Svelto.Tasks;
 using System.Collections;
+using System.Collections.Generic;
 using Svelto.Utilities;
 
 public static class TaskRunnerExtensions
 {
-    public static void RunOnSchedule(this IEnumerator enumerator, IRunner runner)
+    public static void RunOnSchedule<T>(this T enumerator, IRunner<T> runner) where T:class, IEnumerator<object>
     {
         TaskRunner.Instance.RunOnSchedule(runner, enumerator);
     }
     
-    public static void Run(this IEnumerator enumerator)
+    public static void Run<T>(this T enumerator) where T:class, IEnumerator<object>
     {
         TaskRunner.Instance.Run(enumerator);
     }
     
-    public static void Complete(this IEnumerator enumerator)
+    public static void Complete<T>(this T enumerator) where T:IEnumerator
     {
         while (enumerator.MoveNext()) ThreadUtility.Yield();
     }
