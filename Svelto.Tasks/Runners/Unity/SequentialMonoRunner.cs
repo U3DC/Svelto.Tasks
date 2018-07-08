@@ -15,13 +15,19 @@ namespace Svelto.Tasks
     /// internal updates. MonoRunners are disposable though, so at
     /// least be sure to dispose of them once done
     /// </summary>
+    public class SequentialMonoRunner: SequentialMonoRunner<IEnumerator>, IRunner
+    {
+        public SequentialMonoRunner(string name) : base(name)
+        {}
+    }
+    
     public class SequentialMonoRunner<T> : MonoRunner<T> where T:IEnumerator
     {
         public SequentialMonoRunner(string name)
         {
             UnityCoroutineRunner<T>.InitializeGameObject(name, ref _go);
 
-            var coroutines = new FasterList<IPausableTask<T>>(NUMBER_OF_INITIAL_COROUTINE);
+            var coroutines = new FasterList<PausableTask<T>>(NUMBER_OF_INITIAL_COROUTINE);
             var runnerBehaviour = _go.AddComponent<RunnerBehaviourUpdate>();
             var runnerBehaviourForUnityCoroutine = _go.AddComponent<RunnerBehaviour>();
 
@@ -36,22 +42,22 @@ namespace Svelto.Tasks
         protected override UnityCoroutineRunner<T>.RunningTasksInfo info
         { get { return _info; } }
 
-        protected override ThreadSafeQueue<IPausableTask<T>> newTaskRoutines
+        protected override ThreadSafeQueue<PausableTask<T>> newTaskRoutines
         { get { return _newTaskRoutines; } }
 
         protected override UnityCoroutineRunner<T>.FlushingOperation flushingOperation
         { get { return _flushingOperation; } }
         
         static void SequentialTasksFlushing(
-            ThreadSafeQueue<IPausableTask<T>> newTaskRoutines, 
-            FasterList<IPausableTask<T>> coroutines, 
+            ThreadSafeQueue<PausableTask<T>> newTaskRoutines, 
+            FasterList<PausableTask<T>> coroutines, 
             UnityCoroutineRunner<T>.FlushingOperation flushingOperation)
         {
             if (newTaskRoutines.Count > 0 && coroutines.Count == 0)
                 newTaskRoutines.DequeueInto(coroutines, 1);
         }
 
-        readonly ThreadSafeQueue<IPausableTask<T>>         _newTaskRoutines   = new ThreadSafeQueue<IPausableTask<T>>();
+        readonly ThreadSafeQueue<PausableTask<T>>         _newTaskRoutines   = new ThreadSafeQueue<PausableTask<T>>();
         readonly UnityCoroutineRunner<T>.FlushingOperation _flushingOperation = new UnityCoroutineRunner<T>.FlushingOperation();
         readonly UnityCoroutineRunner<T>.RunningTasksInfo  _info;
       

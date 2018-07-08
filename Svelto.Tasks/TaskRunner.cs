@@ -24,16 +24,16 @@ namespace Svelto.Tasks
         /// <returns>
         /// New reusable TaskRoutine
         /// </returns>
-        public ITaskRoutine<T> AllocateNewTaskRoutine<T>() where T:IEnumerator
+        public TaskRoutine<T> AllocateNewTaskRoutine<T>(IRunner<T> runner) where T:IEnumerator
         {
-            return new PausableTask<T>();
+            return new TaskRoutine<T>(new PausableTask<T>(runner));
         }
         
-        public ITaskRoutine AllocateNewTaskRoutine() 
+        public TaskRoutine<IEnumerator> AllocateNewTaskRoutine() 
         {
-            return new PausableTask().SetScheduler(_runner);
+            return new TaskRoutine<IEnumerator>(new PausableTask<IEnumerator>(_runner));
         }
-
+        
         public void PauseAllTasks()
         {
             _runner.paused = true;
@@ -44,30 +44,17 @@ namespace Svelto.Tasks
             _runner.paused = false;
         }
 
-        public void Run<T>(T task) where T:class, IEnumerator
-        {
-            RunOnSchedule(_runner, task);
-        }
-        
         public void Run(IEnumerator task)
         {
             RunOnSchedule(_runner, task);
         }
 
-        /// <summary>
-        /// the first instructions until the first yield are executed immediately
-        /// </summary>
-        /// <param name="runner"></param>
-        /// <param name="task"></param>
-        /// <returns></returns>
-        public void RunOnSchedule<T>(IRunner<T> runner, T task) where T:class, IEnumerator
-        {
-            AllocateNewTaskRoutine<T>().SetScheduler(runner).SetEnumeratorRef(ref task).Start();
-        }
-
         public void RunOnSchedule(IRunner runner, IEnumerator task)
         {
-            _taskPool.RetrieveTaskFromPool().SetScheduler(runner).SetEnumerator(task).Start();
+            var pausableTask = _taskPool.RetrieveTaskFromPool();
+            pausableTask.SetRunner(runner);
+            pausableTask.SetEnumerator(task);
+            pausableTask.Start();
         }
 
         public static void StopAndCleanupAllDefaultSchedulers()
@@ -82,11 +69,6 @@ namespace Svelto.Tasks
             }
         }
 
-//TaskRunner is supposed to be used in the mainthread only
-//this should be enforced in future. 
-//Runners should be used directly on other threads 
-//than the main one
-
          static void InitInstance()
          {
             _instance = new TaskRunner();
@@ -97,6 +79,7 @@ namespace Svelto.Tasks
 #endif
             _instance._taskPool = new PausableTaskPool();
 
+//must still find the right place for this
 #if TASKS_PROFILER_ENABLED && UNITY_EDITOR
             var debugTasksObject = UnityEngine.GameObject.Find("Svelto.Tasks.Profiler");
             if (debugTasksObject == null)
@@ -108,7 +91,7 @@ namespace Svelto.Tasks
 #endif
         }
 
-        IRunner           _runner;
+        IRunner          _runner;
         PausableTaskPool _taskPool;
-     }
+    }
 }

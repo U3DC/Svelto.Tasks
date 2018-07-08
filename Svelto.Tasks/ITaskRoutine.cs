@@ -23,17 +23,13 @@ using System.Collections.Generic;
 
 namespace Svelto.Tasks
 {
-    public interface ITaskRoutine : ITaskRoutine<IEnumerator>
-    {}
-    
     public interface ITaskRoutine<T> where T:IEnumerator
     {
-        ITaskRoutine<T> SetEnumeratorProvider(Func<T> taskGenerator);
-        ITaskRoutine<T> SetEnumerator(T taskGenerator);
-        ITaskRoutine<T> SetEnumeratorRef(ref T taskGenerator);
-        ITaskRoutine<T> SetScheduler(IRunner<T> runner);
+        TaskRoutine<T> SetEnumeratorProvider(Func<T> taskGenerator);
+        TaskRoutine<T> SetEnumerator(T taskGenerator);
+        TaskRoutine<T> SetEnumeratorRef(ref T taskGenerator);
 
-        ContinuationWrapper Start(Action<PausableTaskException> onFail = null, Action onStop = null);
+        ContinuationWrapper<T> Start(Action<PausableTaskException> onFail = null, Action onStop = null);
      
         void Pause();
         void Resume();
@@ -41,4 +37,7 @@ namespace Svelto.Tasks
         
         bool isRunning { get; }
     }
+    
+    public interface ITaskRoutine : ITaskRoutine<IEnumerator>
+    {}
 }

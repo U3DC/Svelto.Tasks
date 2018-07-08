@@ -90,7 +90,7 @@ namespace Svelto.Tasks
             _watch    = new Stopwatch();
         }
 
-        public void StartCoroutine(IPausableTask<T> task)
+        public void StartCoroutine(PausableTask<T> task)
         {
             paused = false;
 
@@ -240,8 +240,8 @@ namespace Svelto.Tasks
             ThreadUtility.MemoryBarrier();
         }
 
-        readonly FasterList<IPausableTask<T>>      _coroutines      = new FasterList<IPausableTask<T>>();
-        readonly ThreadSafeQueue<IPausableTask<T>> _newTaskRoutines = new ThreadSafeQueue<IPausableTask<T>>();
+        readonly FasterList<PausableTask<T>>      _coroutines      = new FasterList<PausableTask<T>>();
+        readonly ThreadSafeQueue<PausableTask<T>> _newTaskRoutines = new ThreadSafeQueue<PausableTask<T>>();
 
         string _name;
         int    _interlock;

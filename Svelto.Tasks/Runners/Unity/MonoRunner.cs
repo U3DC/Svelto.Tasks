@@ -19,7 +19,7 @@ namespace Svelto.Tasks
         public int  numberOfRunningTasks { get { return info.count; } }
 
         protected abstract UnityCoroutineRunner<T>.RunningTasksInfo info { get; }
-        protected abstract ThreadSafeQueue<IPausableTask<T>> newTaskRoutines { get; }
+        protected abstract ThreadSafeQueue<PausableTask<T>> newTaskRoutines { get; }
         protected abstract UnityCoroutineRunner<T>.FlushingOperation flushingOperation { get; }
         protected GameObject _go;
         
@@ -36,11 +36,9 @@ namespace Svelto.Tasks
             newTaskRoutines.Clear();
         }
 
-        public virtual void StartCoroutine(IPausableTask<T> task)
+        public virtual void StartCoroutine(PausableTask<T> task)
         {
             paused = false;
-
-            if (task == null) return;
 
             newTaskRoutines.Enqueue(task); //careful this could run on another thread!
         }

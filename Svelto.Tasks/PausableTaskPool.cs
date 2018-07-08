@@ -1,8 +1,9 @@
+using System.Collections;
 using Svelto.DataStructures;
 
 namespace Svelto.Tasks.Internal
 {
-    sealed class PausableTaskPool
+    public sealed class PausableTaskPool
     {
         public PausableTask RetrieveTaskFromPool()
         {

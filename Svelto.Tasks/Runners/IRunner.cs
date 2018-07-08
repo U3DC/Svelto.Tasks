@@ -1,10 +1,9 @@
 using System;
 using System.Collections;
-using Svelto.Tasks.Internal;
 
 namespace Svelto.Tasks
 {
-    public interface IRunner : IDisposable
+    public interface IRunnerInterface : IDisposable
     {
         bool paused     { get; set; }
         bool isStopping { get; }
@@ -14,8 +13,11 @@ namespace Svelto.Tasks
         int numberOfRunningTasks { get; }
     }
     
-    public interface IRunner<T>: IRunner where T:IEnumerator
+    public interface IRunner<T>: IRunnerInterface where T:IEnumerator
     {
-        void	StartCoroutine(IPausableTask<T> task);
+        void StartCoroutine(PausableTask<T> task);
     }
+
+    public interface IRunner : IRunner<IEnumerator>
+    {}
 }

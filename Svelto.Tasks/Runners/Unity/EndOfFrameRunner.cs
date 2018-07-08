@@ -18,7 +18,7 @@ namespace Svelto.Tasks
         {
             UnityCoroutineRunner<T>.InitializeGameObject(name, ref _go);
 
-            var coroutines = new FasterList<IPausableTask<T>>(NUMBER_OF_INITIAL_COROUTINE);
+            var coroutines = new FasterList<PausableTask<T>>(NUMBER_OF_INITIAL_COROUTINE);
             var runnerBehaviour = _go.AddComponent<RunnerBehaviourEndOfFrame>();
             var runnerBehaviourForUnityCoroutine = _go.AddComponent<RunnerBehaviour>();
 
@@ -33,13 +33,13 @@ namespace Svelto.Tasks
         protected override UnityCoroutineRunner<T>.RunningTasksInfo info
         { get { return _info; } }
 
-        protected override ThreadSafeQueue<IPausableTask<T>> newTaskRoutines
+        protected override ThreadSafeQueue<PausableTask<T>> newTaskRoutines
         { get { return _newTaskRoutines; } }
 
         protected override UnityCoroutineRunner<T>.FlushingOperation flushingOperation
         { get { return _flushingOperation; } }
 
-        readonly ThreadSafeQueue<IPausableTask<T>>         _newTaskRoutines = new ThreadSafeQueue<IPausableTask<T>>();
+        readonly ThreadSafeQueue<PausableTask<T>>         _newTaskRoutines = new ThreadSafeQueue<PausableTask<T>>();
         readonly UnityCoroutineRunner<T>.FlushingOperation _flushingOperation = new UnityCoroutineRunner<T>.FlushingOperation();
         readonly UnityCoroutineRunner<T>.RunningTasksInfo  _info;
       

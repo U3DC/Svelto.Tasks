@@ -30,7 +30,7 @@ namespace Svelto.Tasks
 
             UnityCoroutineRunner<T>.InitializeGameObject(name, ref _go);
 
-            var coroutines = new FasterList<IPausableTask<T>>(NUMBER_OF_INITIAL_COROUTINE);
+            var coroutines = new FasterList<PausableTask<T>>(NUMBER_OF_INITIAL_COROUTINE);
             var runnerBehaviour = _go.AddComponent<RunnerBehaviourUpdate>();
             var runnerBehaviourForUnityCoroutine = _go.AddComponent<RunnerBehaviour>();
 
@@ -45,22 +45,22 @@ namespace Svelto.Tasks
         protected override UnityCoroutineRunner<T>.RunningTasksInfo info
         { get { return _info; } }
 
-        protected override ThreadSafeQueue<IPausableTask<T>> newTaskRoutines
+        protected override ThreadSafeQueue<PausableTask<T>> newTaskRoutines
         { get { return _newTaskRoutines; } }
 
         protected override UnityCoroutineRunner<T>.FlushingOperation flushingOperation
         { get { return _flushingOperation; } }
 
         static void StaggeredTasksFlushing(
-            ThreadSafeQueue<IPausableTask<T>> newTaskRoutines, 
-            FasterList<IPausableTask<T>> coroutines, 
+            ThreadSafeQueue<PausableTask<T>> newTaskRoutines, 
+            FasterList<PausableTask<T>> coroutines, 
             UnityCoroutineRunner<T>.FlushingOperation flushingOperation)
         {
             if (newTaskRoutines.Count > 0)
                 newTaskRoutines.DequeueInto(coroutines, ((FlushingOperationStaggered)flushingOperation).maxTasksPerFrame);
         }
 
-        public override void StartCoroutine(IPausableTask<T> task)
+        public override void StartCoroutine(PausableTask<T> task)
         {
             paused = false;
 
@@ -79,7 +79,7 @@ namespace Svelto.Tasks
 
         readonly FlushingOperationStaggered            _flushingOperation;
         readonly UnityCoroutineRunner<T>.RunningTasksInfo _info;
-        readonly ThreadSafeQueue<IPausableTask<T>>        _newTaskRoutines = new ThreadSafeQueue<IPausableTask<T>>();
+        readonly ThreadSafeQueue<PausableTask<T>>        _newTaskRoutines = new ThreadSafeQueue<PausableTask<T>>();
 
         const int NUMBER_OF_INITIAL_COROUTINE = 3;
     }

@@ -10,9 +10,17 @@ namespace Svelto.Tasks
     //Depending by the case, it may be better to
     //use the ManualResetEventEx synchronization instead.
 
-    public class SyncRunner : IRunner
+    public class SyncRunner : SyncRunner<IEnumerator>, IRunner
+    {}
+
+    public class SyncRunner<T> : IRunner<T> where T:IEnumerator
     {
-        public bool paused { get; set; }
+        public void StartCoroutine(PausableTask<T> task)
+        {
+            while (task.MoveNext() == true) ThreadUtility.Yield();
+        }
+        
+        public bool paused     { get; set; }
         public bool isStopping { get; }
         
         public void StopAllCoroutines()
@@ -24,13 +32,5 @@ namespace Svelto.Tasks
 
         public void Dispose()
         {}
-    }
-
-    public class SyncRunner<T> : SyncRunner, IRunner<T> where T:IEnumerator
-    {
-        public void StartCoroutine(IPausableTask<T> task)
-        {
-            while (task.MoveNext() == true) ThreadUtility.Yield();
-        }
     }
 }

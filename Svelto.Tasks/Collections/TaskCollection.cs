@@ -2,7 +2,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using Svelto.DataStructures;
-using Svelto.Tasks.Internal;
 
 namespace Svelto.Tasks
 {
@@ -12,9 +11,8 @@ namespace Svelto.Tasks
         event Action                onComplete;
         event Func<Exception, bool> onException;
         
-        TaskCollection<T> Add(IAsyncTask asyncTask);
-        TaskCollection<T> Add(T          enumerator);
-        void              Clear();
+        ITaskCollection<T> Add(T enumerator);
+        void               Clear();
         
         bool isRunning { get; }
     }
@@ -35,7 +33,7 @@ namespace Svelto.Tasks
         
         TaskCollection(int initialSize)
         {
-            _listOfStacks = FasterList<Stack<StackWrapper>>.PreFill<Stack<StackWrapper>>(initialSize);
+            _listOfStacks = FasterList<StructFriendlyStack<T>>.PreFill<StructFriendlyStack<T>>(initialSize);
         }
         
         public override String ToString()
@@ -45,11 +43,6 @@ namespace Svelto.Tasks
 
         public void Dispose()
         {}
-
-        bool IEnumerator.MoveNext()
-        {
-            return MoveNext();
-        }
 
         public bool MoveNext()
         {
@@ -81,26 +74,24 @@ namespace Svelto.Tasks
             return false;
         }
 
-        public TaskCollection<T> Add(IAsyncTask asyncTask)
+        public ITaskCollection<T> Add(T enumerator)
         {
-            return Add((T)new AsyncTaskWrapper(asyncTask));
-        }
-
-        public TaskCollection<T> Add(T enumerator)
-        {
-            Stack<StackWrapper> stack;
+            StructFriendlyStack<T> stack;
             if (_listOfStacks.Reuse(_listOfStacks.Count, out stack) == false)
-                stack = new Stack<StackWrapper>(_INITIAL_STACK_SIZE);
+                stack = new StructFriendlyStack<T>(_INITIAL_STACK_SIZE);
             else
                 stack.Clear();
 
-            stack.Push(new StackWrapper(enumerator));
+            stack.Push(enumerator);
             _listOfStacks.Add(stack);
 
             return this;
         }
         
-        object IEnumerator.Current => Current;
+        object IEnumerator.Current
+        {
+            get { return Current.current; }
+        }
 
         public CollectionTask Current { get; }
 
@@ -112,7 +103,7 @@ namespace Svelto.Tasks
             Reset();
         }
 
-        T IEnumerator<T>.Current { get; }
+        T IEnumerator<T>.Current => _currentTaskEnumerator;
 
         public void Reset()
         {
@@ -121,7 +112,8 @@ namespace Svelto.Tasks
             {
                 var stack = _listOfStacks[index];
                 while (stack.Count > 1) stack.Pop();
-                stack.Peek().enumerator.Reset();
+                int stackIndex;
+                stack.Peek(out stackIndex)[stackIndex].Reset();
             }
 
             _index = 0;
@@ -137,39 +129,44 @@ namespace Svelto.Tasks
             yieldIt,
         }
 
-        protected TaskState ProcessStackAndCheckIfDone(Stack<StackWrapper> stack)
+        protected TaskState ProcessStackAndCheckIfDone(StructFriendlyStack<T> stack)
         {
-            var ce = stack.Peek(); //get the current task to execute
-            
-            bool isDone      = !ce.enumerator.MoveNext();
-            Current.current = ce.enumerator.Current;
+            int stackIndex;
+            var stacks = stack.Peek(out stackIndex);
+                
+            bool isDone  = !stacks[stackIndex].MoveNext();
+            //_current is the tasks IEnumerator
+            _currentTaskEnumerator     = stacks[stackIndex];
+            //Svelto.Tasks Tasks IEnumerator are always IEnumerator returning an object
+            //so Current is always an object
+            Current.current = stacks[stackIndex].Current;
             
             if (isDone == true)
                 return TaskState.doneIt;
 
+            //being the IEnumerator handling always objects, it can be different things
+            var returnObject = Current.current;
+            //can be a Svelto.Tasks Break
+            if (returnObject == Break.It || returnObject == Break.AndStop)
             {
-                object returnObject = Current.current;
-                if (returnObject == Break.It || returnObject == Break.AndStop)
-                {
-                    Current.breakIt = (Break) returnObject;
+                Current.breakIt = returnObject as Break;
 
-                    return TaskState.breakIt;
-                }
-                
-                if (returnObject == null) //if null yield until next iteration
-                    return TaskState.yieldIt;
-                
-                if (returnObject is IAsyncTask)
-                    returnObject = (T)new AsyncTaskWrapper(returnObject as IAsyncTask);
-
-                if (returnObject is ITaskRoutine<T>)
-                    returnObject = (returnObject as ITaskRoutine<T>).Start();
-                
-                if (returnObject is T)
-                    stack.Push(new StackWrapper((T)returnObject)); //push the new yielded task and execute it immediately
+                return TaskState.breakIt;
             }
-            //if I continue down this route a TValue must be returned for last therefore it must be done
+            //can be a frame yield
+            if (returnObject == null)
+                return TaskState.yieldIt;
+#if DEBUG && !PROFILER                
+            if (returnObject is IAsyncTask)
+                throw new ArgumentException("Svelto.Task 2.0 is not supporting IAsyncTask implicitly anymore, use AsyncTaskWrapper instead " + ToString()); 
 
+            if (returnObject is ITaskRoutine<T>)
+                throw new ArgumentException("Returned a TaskRoutine without calling Start first " + ToString());
+#endif            
+            //can be a compatible IEnumerator  
+            if (returnObject is T)
+                stack.Push((T)returnObject); //push the new yielded task and execute it immediately
+            
             return TaskState.continueIt;
                 
         }
@@ -184,7 +181,7 @@ namespace Svelto.Tasks
             _index = 0;
         }
 
-        protected readonly FasterList<Stack<StackWrapper>> _listOfStacks;
+        protected readonly FasterList<StructFriendlyStack<T>> _listOfStacks;
 
         const int _INITIAL_STACK_SIZE = 1;
 
@@ -207,7 +204,7 @@ namespace Svelto.Tasks
         }
 
         readonly string         _name;
-
+/*
         protected struct StackWrapper
         {
             internal T                enumerator;
@@ -216,9 +213,74 @@ namespace Svelto.Tasks
             {
                 enumerator = val;
             }
-        }
+        }*/
 
         int _index;
+        T _currentTaskEnumerator;
+
+        protected class StructFriendlyStack<T>
+        {
+            T[] _stack;
+            int _nextFreeStackIndex;
+
+            public int Count { get { return _nextFreeStackIndex; } }
+
+            public StructFriendlyStack(int stackSize)
+            {
+                _stack              = new T[stackSize];
+                _nextFreeStackIndex = 0;
+            }
+
+            public StructFriendlyStack()
+            {      
+                _stack              = new T[1];
+                _nextFreeStackIndex = 0;
+            }
+
+            public void Push(T value)
+            {
+                // Don't reallocate before we actually want to push to it
+                if (_nextFreeStackIndex == _stack.Length)
+                {
+                    // Double for small stacks, and increase by 20% for larger stacks
+                    Array.Resize(ref _stack, _stack.Length < 100 
+                                                 ? 2 *_stack.Length 
+                                                 : (int) (_stack.Length * 1.2));
+                }
+
+                // Store the value, and increase reference afterwards
+                _stack[_nextFreeStackIndex++] = value;
+            }
+
+            public T Pop()
+            {
+                if(_nextFreeStackIndex == 0)
+                    throw new InvalidOperationException("The stack is empty");
+
+                // Decrease the reference before fetching the value as
+                // the reference points to the next free place
+                T returnValue = _stack[--_nextFreeStackIndex]; 
+
+                // As a safety/security measure, reset value to a default value
+                _stack[_nextFreeStackIndex] = default(T);
+
+                return returnValue;
+            }
+
+            public T[] Peek(out int index)
+            {
+                DBC.Tasks.Check.Require(_nextFreeStackIndex != 0);
+                index = _nextFreeStackIndex - 1;
+                return _stack;
+            }
+
+            public void Clear()
+            {
+                _nextFreeStackIndex = 0;
+            }
+        }
     }
 }
+
+
 
