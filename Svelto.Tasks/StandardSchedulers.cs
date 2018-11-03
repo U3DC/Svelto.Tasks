@@ -1,3 +1,7 @@
+#if UNITY_5 || UNITY_5_3_OR_NEWER
+using Svelto.Tasks.Unity;
+#endif
+
 namespace Svelto.Tasks
 {
     public static class StandardSchedulers
@@ -10,21 +14,21 @@ namespace Svelto.Tasks
         static UpdateMonoRunner _updateScheduler;
 #endif
 
-        public static IRunner multiThreadScheduler { get { if (_multiThreadScheduler == null) _multiThreadScheduler = new MultiThreadRunner("MultiThreadRunner");
+        public static IRunner multiThreadScheduler { get { if (_multiThreadScheduler == null) _multiThreadScheduler = new MultiThreadRunner("MultiThreadRunner", false);
             return _multiThreadScheduler;
         } }
 
 #if UNITY_5 || UNITY_5_3_OR_NEWER
-        public static IRunner coroutineScheduler { get { if (_coroutineScheduler == null) _coroutineScheduler = new CoroutineMonoRunner("StandardCoroutineRunner");
+        public static IRunner coroutineScheduler { get { if (_coroutineScheduler == null) _coroutineScheduler = new CoroutineMonoRunner("StandardCoroutineRunner", true);
             return _coroutineScheduler;
         } }
-        public static IRunner physicScheduler { get { if (_physicScheduler == null) _physicScheduler = new PhysicMonoRunner("StandardPhysicRunner");
+        public static IRunner physicScheduler { get { if (_physicScheduler == null) _physicScheduler = new PhysicMonoRunner("StandardPhysicRunner", true);
             return _physicScheduler;
         } }
-        public static IRunner lateScheduler { get { if (_lateScheduler == null) _lateScheduler = new LateMonoRunner("StandardLateRunner");
+        public static IRunner lateScheduler { get { if (_lateScheduler == null) _lateScheduler = new LateMonoRunner("StandardLateRunner", true);
             return _lateScheduler;
         } }
-        public static IRunner updateScheduler { get { if (_updateScheduler == null) _updateScheduler = new UpdateMonoRunner("StandardMonoRunner");
+        public static IRunner updateScheduler { get { if (_updateScheduler == null) _updateScheduler = new UpdateMonoRunner("StandardMonoRunner", true);
             return _updateScheduler;
         } }
 #endif

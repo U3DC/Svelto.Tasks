@@ -73,15 +73,22 @@ namespace Svelto.Tasks
 
         public MultiThreadedParallelTaskCollection()
         {
-            InitializeThreadsAndData((uint) Environment.ProcessorCount);
+            InitializeThreadsAndData((uint) Environment.ProcessorCount, false);
         }
-
-        public MultiThreadedParallelTaskCollection(uint numberOfThreads)
+        /// <summary>
+        ///  
+        /// </summary>
+        /// <param name="numberOfThreads"></param>
+        /// <param name="tightTasks">
+        /// if several cache friendly and optimized tasks run in parallel, using tightTasks may improve parallelism
+        /// as gives the chance to other threads to run.
+        /// </param>
+        public MultiThreadedParallelTaskCollection(uint numberOfThreads, bool tightTasks)
         {
-            InitializeThreadsAndData(numberOfThreads);
+            InitializeThreadsAndData(numberOfThreads, tightTasks);
         }
 
-        void InitializeThreadsAndData(uint numberOfThreads)
+        void InitializeThreadsAndData(uint numberOfThreads, bool tightTasks)
         {
             _runners       = new MultiThreadRunner<ParallelTaskCollection<T>>[numberOfThreads];
             _taskRoutines  = new ITaskRoutine<ParallelTaskCollection<T>>[numberOfThreads];
@@ -90,7 +97,7 @@ namespace Svelto.Tasks
             //prepare a single multithread runner for each group of fiber like task collections
             //number of threads can be less than the number of tasks to run
             for (int i = 0; i < numberOfThreads; i++)
-                _runners[i] = new MultiThreadRunner<ParallelTaskCollection<T>>("MultiThreadedParallelTask #".FastConcat(i));
+                _runners[i] = new MultiThreadRunner<ParallelTaskCollection<T>>("MultiThreadedParallelTask #".FastConcat(i), false, tightTasks);
 
             Action ptcOnOnComplete = DecrementConcurrentOperationsCounter;
             Func<Exception, bool> ptcOnOnException = (e) =>
@@ -167,6 +174,8 @@ namespace Svelto.Tasks
             if (_isDisposing == false && onComplete != null)
                 onComplete();
 
+            isRunning = false;
+
             return false;
         }
 
@@ -201,6 +210,7 @@ namespace Svelto.Tasks
             _parallelTasks      = null;
             onComplete          = null;
             _numberOfTasksAdded = 0;
+            isRunning = false;
             
             ThreadUtility.MemoryBarrier();
         }

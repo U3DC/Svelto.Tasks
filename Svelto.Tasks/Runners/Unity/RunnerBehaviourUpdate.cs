@@ -2,12 +2,14 @@
 using System.Collections;
 using UnityEngine;
 
-namespace Svelto.Tasks.Internal
+namespace Svelto.Tasks.Unity.Internal
 {
-    class RunnerBehaviourUpdate : MonoBehaviour
+    public class RunnerBehaviourUpdate : MonoBehaviour
     {
-        void Update()
+        public void Update()
         {
+            if (_earlyMainRoutine != null)
+                _earlyMainRoutine.MoveNext();
             if (_mainRoutine != null)
                 _mainRoutine.MoveNext();
         }
@@ -16,7 +18,13 @@ namespace Svelto.Tasks.Internal
         {
             _mainRoutine = enumerator;
         }
+        
+        public void StartEarlyUpdateCoroutine(IEnumerator enumerator)
+        {
+            _earlyMainRoutine = enumerator;
+        }
 
+        IEnumerator _earlyMainRoutine;
         IEnumerator _mainRoutine;
     }
 }

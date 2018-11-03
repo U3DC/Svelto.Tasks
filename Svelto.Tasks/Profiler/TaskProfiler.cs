@@ -1,4 +1,5 @@
-//#define ENABLE_PIX_EVENTS
+#if TASKS_PROFILER_ENABLED
+ //#define ENABLE_PIX_EVENTS
 
 using System.Collections;
 using System.Diagnostics;
@@ -9,16 +10,16 @@ using Svelto.DataStructures;
 
 namespace Svelto.Tasks.Profiler
 {
-    public sealed class TaskProfiler
+    public static class TaskProfiler
     {
-        readonly Stopwatch _stopwatch = new Stopwatch();
+        static readonly Stopwatch _stopwatch = new Stopwatch();
         
         static object LOCK_OBJECT = new object();
 
         internal static readonly ThreadSafeDictionary<string, TaskInfo> taskInfos =
             new ThreadSafeDictionary<string, TaskInfo>();
-
-        public bool MonitorUpdateDuration(IEnumerator tickable, string runnerName)
+ 
+        public static bool MonitorUpdateDuration(IEnumerator tickable, string runnerName)
         {
             var key = tickable.ToString().FastConcat(runnerName);
 #if ENABLE_PIX_EVENTS            
@@ -59,3 +60,4 @@ namespace Svelto.Tasks.Profiler
         }
     }
 }
+#endif

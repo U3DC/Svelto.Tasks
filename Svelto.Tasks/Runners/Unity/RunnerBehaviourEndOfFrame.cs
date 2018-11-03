@@ -2,9 +2,9 @@
 using System.Collections;
 using UnityEngine;
 
-namespace Svelto.Tasks.Internal
+namespace Svelto.Tasks.Unity.Internal
 {
-    class RunnerBehaviourEndOfFrame : MonoBehaviour
+    public class RunnerBehaviourEndOfFrame : MonoBehaviour
     {
         void Awake()
         {
@@ -18,10 +18,13 @@ namespace Svelto.Tasks.Internal
 
         IEnumerator WaitForEndOfFrameLoop()
         {
-            yield return _waitForEndOfFrame;
-            
-            if (_mainRoutine != null)
-                _mainRoutine.MoveNext();
+            while (true)
+            {
+                yield return _waitForEndOfFrame;
+
+                if (_mainRoutine != null)
+                    _mainRoutine.MoveNext();
+            }
         }
 
         IEnumerator       _mainRoutine;

@@ -2,9 +2,9 @@
 using System.Collections;
 using UnityEngine;
 
-namespace Svelto.Tasks.Internal
+namespace Svelto.Tasks.Unity.Internal
 {
-    class RunnerBehaviourPhysic : MonoBehaviour
+    public class RunnerBehaviourPhysic : MonoBehaviour
     {
         void FixedUpdate()
         {

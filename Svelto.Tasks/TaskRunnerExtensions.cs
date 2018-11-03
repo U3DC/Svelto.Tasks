@@ -8,7 +8,7 @@ public static class TaskRunnerExtensions
     {
         TaskRunner.Instance.RunOnSchedule(runner, enumerator);
     }
-    
+
     public static void Run(this IEnumerator enumerator)
     {
         TaskRunner.Instance.Run(enumerator);
@@ -16,11 +16,14 @@ public static class TaskRunnerExtensions
     
     public static void Complete<T>(this T enumerator) where T:IEnumerator
     {
-        while (enumerator.MoveNext()) ThreadUtility.Yield();
+        var quickIterations = 0;
+        
+        while (enumerator.MoveNext())
+            ThreadUtility.Wait(ref quickIterations);
     }
     
     public static TaskRoutine<T> AllocateNewTaskRoutine<T>(this T enumerator, IRunner<T> runner) where T:IEnumerator
     {
-        return TaskRunner.Instance.AllocateNewTaskRoutine<T>(runner).SetEnumeratorRef(ref enumerator);
+        return TaskRunner.Instance.AllocateNewTaskRoutine(runner).SetEnumeratorRef(ref enumerator);
     }
 }
