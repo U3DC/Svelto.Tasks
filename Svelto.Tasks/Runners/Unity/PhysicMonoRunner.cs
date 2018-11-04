@@ -1,4 +1,5 @@
 #if UNITY_5 || UNITY_5_3_OR_NEWER
+using System.Collections;
 using Svelto.Tasks.Unity.Internal;
 
 namespace Svelto.Tasks.Unity
@@ -11,9 +12,9 @@ namespace Svelto.Tasks.Unity
     /// least be sure to dispose of them once done
     /// </summary>
     ///
-    public class PhysicMonoRunner:PhysicMonoRunner<IEnumerator>, IRunner 
+    public class PhysicMonoRunner:PhysicMonoRunner<IEnumerator> 
     {
-        public PhysicMonoRunner(string name) : base(name)
+        public PhysicMonoRunner(string name, bool mustSurvive = false) : base(name, mustSurvive)
         {
         }
     }
@@ -21,12 +22,12 @@ namespace Svelto.Tasks.Unity
     {
         public PhysicMonoRunner(string name, bool mustSurvive = false)
         {
-            UnityCoroutineRunner.InitializeGameObject(name, ref _go, mustSurvive);
+            UnityCoroutineRunner<T>.InitializeGameObject(name, ref _go, mustSurvive);
 
             var runnerBehaviour = _go.AddComponent<RunnerBehaviourPhysic>();
-            var info = new UnityCoroutineRunner.StandardRunningTaskInfo() { runnerName = name };
+            var info = new UnityCoroutineRunner<T>.StandardRunningTaskInfo() { runnerName = name };
 
-            runnerBehaviour.StartPhysicCoroutine(new UnityCoroutineRunner.Process
+            runnerBehaviour.StartPhysicCoroutine(new UnityCoroutineRunner<T>.Process
                 (_newTaskRoutines, _coroutines, _flushingOperation, info));
         }
     }

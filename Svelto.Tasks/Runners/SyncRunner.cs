@@ -1,15 +1,18 @@
 using System.Collections;
 namespace Svelto.Tasks
 {
-    
+
     /// <summary>
     /// Be sure you know what you are doing when you are using the Sync runner, it will stall the current thread!
     /// Depending by the case, it may be better to use the ManualResetEventEx synchronization instead. 
     /// </summary>
 
+    public class SyncRunner : SyncRunner<IEnumerator>
+    {}
+
     public class SyncRunner<T> : IRunner<T> where T:IEnumerator
     {
-        public void StartCoroutine(PausableTask<T> task)
+        public void StartCoroutine(SveltoTask<T> task)
         {
             task.Complete();
         }

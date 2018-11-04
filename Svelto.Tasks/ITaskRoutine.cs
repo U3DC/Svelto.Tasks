@@ -25,9 +25,9 @@ namespace Svelto.Tasks
 {
     public interface ITaskRoutine<T> where T:IEnumerator
     {
-        TaskRoutine<T> SetEnumeratorProvider(Func<T> taskGenerator);
-        TaskRoutine<T> SetEnumerator(T taskGenerator);
-        TaskRoutine<T> SetEnumeratorRef(ref T taskGenerator);
+        void SetEnumeratorProvider(Func<T> taskGenerator);
+        void SetEnumerator(T taskGenerator);
+        void SetEnumeratorRef(ref T taskGenerator);
 
         ContinuationWrapper<T> Start(Action<PausableTaskException> onFail = null, Action onStop = null);
      
@@ -37,7 +37,4 @@ namespace Svelto.Tasks
         
         bool isRunning { get; }
     }
-    
-    public interface ITaskRoutine : ITaskRoutine<IEnumerator>
-    {}
 }

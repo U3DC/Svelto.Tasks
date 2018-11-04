@@ -33,7 +33,7 @@ namespace Svelto.Tasks
 
     public class MultiThreadedParallelTaskCollection: MultiThreadedParallelTaskCollection<IEnumerator>
     {
-        public MultiThreadedParallelTaskCollection(uint numberOfThreads):base(numberOfThreads)
+        public MultiThreadedParallelTaskCollection(uint numberOfThreads, bool tightTasks = false):base(numberOfThreads, tightTasks)
         {}
 
         public MultiThreadedParallelTaskCollection()
@@ -41,7 +41,7 @@ namespace Svelto.Tasks
         }
     }
 
-    public class MultiThreadedParallelTaskCollection<T> : ITaskCollection<T>, IDisposable where T:IEnumerator
+    public class MultiThreadedParallelTaskCollection<T> : ITaskCollection<T> where T:IEnumerator
     {
         public event Action onComplete;
         public event Func<Exception, bool> onException;
@@ -210,7 +210,7 @@ namespace Svelto.Tasks
             _parallelTasks      = null;
             onComplete          = null;
             _numberOfTasksAdded = 0;
-            isRunning = false;
+            isRunning           = false;
             
             ThreadUtility.MemoryBarrier();
         }

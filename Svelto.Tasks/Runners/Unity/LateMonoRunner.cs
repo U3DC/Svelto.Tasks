@@ -1,12 +1,13 @@
 #if UNITY_5 || UNITY_5_3_OR_NEWER
+using System.Collections;
 using Svelto.Tasks.Unity.Internal;
 
 namespace Svelto.Tasks.Unity
 {
 
-    public class LateMonoRunner : LateMonoRunner<IEnumerator>, IRunner
+    public class LateMonoRunner : LateMonoRunner<IEnumerator>
     {
-        public LateMonoRunner(string name) : base(name)
+        public LateMonoRunner(string name, bool mustSurvive = false) : base(name, mustSurvive)
         {
         }
     }
@@ -15,12 +16,12 @@ namespace Svelto.Tasks.Unity
     {
         public LateMonoRunner(string name, bool mustSurvive = false)
         {
-            UnityCoroutineRunner.InitializeGameObject(name, ref _go, mustSurvive);
+            UnityCoroutineRunner<T>.InitializeGameObject(name, ref _go, mustSurvive);
 
             var runnerBehaviour = _go.AddComponent<RunnerBehaviourLate>();
-            var info = new UnityCoroutineRunner.StandardRunningTaskInfo() { runnerName = name };
+            var info = new UnityCoroutineRunner<T>.StandardRunningTaskInfo() { runnerName = name };
 
-            runnerBehaviour.StartLateCoroutine(new UnityCoroutineRunner.Process
+            runnerBehaviour.StartLateCoroutine(new UnityCoroutineRunner<T>.Process
                 (_newTaskRoutines, _coroutines, _flushingOperation, info));
         }
     }

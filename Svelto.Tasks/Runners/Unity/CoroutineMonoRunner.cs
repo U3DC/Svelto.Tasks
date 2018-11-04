@@ -17,9 +17,9 @@ namespace Svelto.Tasks.Unity
     /// replacement is available.
     /// </summary>
     
-    public class CoroutineMonoRunner : CoroutineMonoRunner<IEnumerator>, IRunner
+    public class CoroutineMonoRunner : CoroutineMonoRunner<IEnumerator>
     {
-        public CoroutineMonoRunner(string name) : base(name)
+        public CoroutineMonoRunner(string name, bool mustSurvive = false) : base(name, mustSurvive)
         {
         }
     }
@@ -41,7 +41,7 @@ namespace Svelto.Tasks.Unity
                 _newTaskRoutines, _coroutines, _flushingOperation, _info));
         }
         
-        public override void StartCoroutine(PausableTask<T> task)
+        public override void StartCoroutine(SveltoTask<T> task)
         {
             paused = false;
 
@@ -49,7 +49,7 @@ namespace Svelto.Tasks.Unity
                 _newTaskRoutines.Enqueue(task);
         }
         
-        bool ExecuteFirstTaskStep(PausableTask<T> task)
+        bool ExecuteFirstTaskStep(SveltoTask<T> task)
         {
             if (task == null)
                 return false;
@@ -83,8 +83,8 @@ namespace Svelto.Tasks.Unity
         {
             public CoroutineRunningInfo(RunnerBehaviour                        runnerBehaviourForUnityCoroutine,
                                         UnityCoroutineRunner<T>.FlushingOperation flushingOperation,
-                                        FasterList<PausableTask<T>>              coroutines, 
-                                        Action<PausableTask<T>>                  startCoroutine)
+                                        FasterList<SveltoTask<T>>              coroutines, 
+                                        Action<SveltoTask<T>>                  startCoroutine)
             {
                 _runnerBehaviourForUnityCoroutine = runnerBehaviourForUnityCoroutine;
                 _flushingOperation = flushingOperation;
@@ -123,27 +123,25 @@ namespace Svelto.Tasks.Unity
 
                         //remove the coroutine yielding the special instruction. it will be added back once Unity
                         //completes. When it's resumed use the StartCoroutine function, the first step is executed
-                        //immediatly, giving the chance to step beyond the current Yieldinstruction
-                        _coroutines.UnorderedRemoveAt(index--);
+                        //immediately, giving the chance to step beyond the current Yieldinstruction
+                        _coroutines.UnorderedRemoveAt(index);
                         
                         var coroutine = _runnerBehaviourForUnityCoroutine.StartCoroutine
                             (handItToUnity.GetEnumerator());
 
-                        (pausableTask as PausableTask).onExplicitlyStopped = () =>
+                        (pausableTask as SveltoTask<>).onTaskHasBeenInterrupted += () =>
                                                                              {
                                                                                  _runnerBehaviourForUnityCoroutine
                                                                                     .StopCoroutine(coroutine);
                                                                                  
-                                                                                 handItToUnity.ForceStop();
+                                                                                 handItToUnity.Done();
                                                                              };
 
-                         return _coroutines.Count > 0;
+                        return index < _coroutines.Count;
                     }
                 }
                 else
-                {
                     _runnerBehaviourForUnityCoroutine.StopAllCoroutines();
-                }
 
                 return true;
             }
@@ -154,21 +152,21 @@ namespace Svelto.Tasks.Unity
             readonly float                                  _maxTasksPerIteration;
             readonly RunnerBehaviour                        _runnerBehaviourForUnityCoroutine;
             readonly UnityCoroutineRunner<T>.FlushingOperation _flushingOperation;
-            readonly FasterList<PausableTask<T>>              _coroutines;
-            readonly Action<PausableTask<T>>                  _resumeOperation;
+            readonly FasterList<SveltoTask<T>>              _coroutines;
+            readonly Action<SveltoTask<T>>                  _resumeOperation;
         }
 
         readonly UnityCoroutineRunner<T>.RunningTasksInfo _info;
         readonly Svelto.Common.PlatformProfiler        _platformProfiler;
-        readonly Action<PausableTask<T>>                 _resumeOperation;
+        readonly Action<SveltoTask<T>>                 _resumeOperation;
 
         readonly RunnerBehaviour _runnerBehaviourForUnityCoroutine;
         
         class HandItToUnity
         {
             public HandItToUnity(object                current,
-                                 PausableTask<T>         task,
-                                 Action<PausableTask<T>> resumeOperation,
+                                 SveltoTask<T>         task,
+                                 Action<SveltoTask<T>> resumeOperation,
                                  UnityCoroutineRunner<T>.FlushingOperation     flush)
             {
                 _current           = current;
@@ -182,12 +180,12 @@ namespace Svelto.Tasks.Unity
             {
                 yield return _current;
 
-                ForceStop();
+                Done();
             }
             
             //The task must be added back in the collection even if
             //it's just to check if must stop
-            public void ForceStop()
+            public void Done()
             {
                 _isDone = true;
                 
@@ -198,15 +196,19 @@ namespace Svelto.Tasks.Unity
             }
 
             readonly object                _current;
-            readonly PausableTask<T>         _task;
-            readonly Action<PausableTask<T>> _resumeOperation;
+
+            readonly SveltoTask<T>         _task;
+            readonly Action<SveltoTask<T>> _resumeOperation;
 
             bool                       _isDone;
             readonly UnityCoroutineRunner<T>.FlushingOperation _flushingOperation;
-
-            public HandItToUnity()
-            {}
         }
+    }
+
+    public class CoroutineMonoRunnerException : Exception
+    {
+        public CoroutineMonoRunnerException(string message): base(message)
+        {}
     }
 }
 #endif

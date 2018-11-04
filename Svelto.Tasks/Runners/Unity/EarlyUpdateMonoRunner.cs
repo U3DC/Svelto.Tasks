@@ -5,7 +5,7 @@ using Svelto.Tasks.Unity.Internal;
 
 namespace Svelto.Tasks.Unity
 {
-    public class EarlyUpdateMonoRunner : EarlyUpdateMonoRunner<IEnumerator>, IRunner
+    public class EarlyUpdateMonoRunner : EarlyUpdateMonoRunner<IEnumerator>
     {
         public EarlyUpdateMonoRunner(UpdateMonoRunner updateRunner, string name) : base(updateRunner, name)
         {

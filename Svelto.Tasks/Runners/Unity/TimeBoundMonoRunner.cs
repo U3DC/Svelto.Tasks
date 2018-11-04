@@ -1,15 +1,22 @@
 #if UNITY_5 || UNITY_5_3_OR_NEWER
+using System.Collections;
 using System.Diagnostics;
 using Svelto.Tasks.Unity.Internal;
 
 namespace Svelto.Tasks.Unity
 {
     /// <summary>
-    //TimeBoundMonoRunner ensures that the tasks running won't take more than maxMilliseconds per iteration
-    //Several tasks must run on this runner to make sense. TaskCollections are considered
-    //single tasks, so they don't count (may change in future)
+    ///TimeBoundMonoRunner ensures that the tasks running won't take more than maxMilliseconds per iteration
+    ///Several tasks must run on this runner to make sense. TaskCollections are considered
+    ///single tasks, so they don't count (may change in future)
     /// </summary>
-    public class TimeBoundMonoRunner : MonoRunner
+    public class TimeBoundMonoRunner : TimeBoundMonoRunner<IEnumerator>
+    {
+        public TimeBoundMonoRunner(string name, float maxMilliseconds, bool mustSurvive = false) : base(name, maxMilliseconds, mustSurvive)
+        {}
+    }
+    
+    public class TimeBoundMonoRunner<T> : MonoRunner<T> where T:IEnumerator
     {
         public float maxMilliseconds
         {
@@ -22,19 +29,19 @@ namespace Svelto.Tasks.Unity
         // Greedy means that the runner will try to occupy the whole maxMilliseconds interval, by looping among all tasks until all are completed or maxMilliseconds passed
         public TimeBoundMonoRunner(string name, float maxMilliseconds, bool mustSurvive = false)
         {
-            _flushingOperation = new UnityCoroutineRunner.FlushingOperation();
+            _flushingOperation = new UnityCoroutineRunner<T>.FlushingOperation();
 
-            UnityCoroutineRunner.InitializeGameObject(name, ref _go, mustSurvive);
+            UnityCoroutineRunner<T>.InitializeGameObject(name, ref _go, mustSurvive);
 
             var runnerBehaviour = _go.AddComponent<RunnerBehaviourUpdate>();
 
             _info = new TimeBoundRunningInfo(maxMilliseconds) { runnerName = name };
 
-            runnerBehaviour.StartUpdateCoroutine(new UnityCoroutineRunner.Process
+            runnerBehaviour.StartUpdateCoroutine(new UnityCoroutineRunner<T>.Process
                 (_newTaskRoutines, _coroutines, _flushingOperation, _info));
         }
 
-        class TimeBoundRunningInfo : UnityCoroutineRunner.RunningTasksInfo
+        class TimeBoundRunningInfo : UnityCoroutineRunner<T>.RunningTasksInfo
         {
             public long maxMilliseconds;
 

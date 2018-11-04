@@ -6,7 +6,7 @@ namespace Svelto.Tasks.Unity.Internal
 {
     public static class StandardCoroutineProcess
     {
-        public static void StandardCoroutineIteration<T>(ref int i, FasterList<PausableTask<T>> coroutines) where T:IEnumerator
+        public static void StandardCoroutineIteration<T>(ref int i, FasterList<SveltoTask<T>> coroutines) where T:IEnumerator
         {
             var pausableTask = coroutines[i];
 

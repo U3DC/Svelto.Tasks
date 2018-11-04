@@ -45,7 +45,7 @@ namespace Svelto.Tasks.Unity
             _newTaskRoutines.Clear();
         }
 
-        public virtual void StartCoroutine(PausableTask<T> task)
+        public virtual void StartCoroutine(SveltoTask<T> task)
         {
             paused = false;
 
@@ -59,9 +59,9 @@ namespace Svelto.Tasks.Unity
             GameObject.DestroyImmediate(_go);
         }
         
-        protected readonly ThreadSafeQueue<PausableTask<T>> _newTaskRoutines = new ThreadSafeQueue<PausableTask<T>>();
-        protected readonly FasterList<PausableTask<T>> _coroutines =
-            new FasterList<PausableTask<T>>(NUMBER_OF_INITIAL_COROUTINE);
+        protected readonly ThreadSafeQueue<SveltoTask<T>> _newTaskRoutines = new ThreadSafeQueue<SveltoTask<T>>();
+        protected readonly FasterList<SveltoTask<T>> _coroutines =
+            new FasterList<SveltoTask<T>>(NUMBER_OF_INITIAL_COROUTINE);
         
         protected UnityCoroutineRunner<T>.FlushingOperation _flushingOperation =
             new UnityCoroutineRunner<T>.FlushingOperation();

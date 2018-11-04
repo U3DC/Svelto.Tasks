@@ -1,4 +1,5 @@
 #if UNITY_5 || UNITY_5_3_OR_NEWER
+using System.Collections;
 using Svelto.Tasks.Unity.Internal;
 
 namespace Svelto.Tasks.Unity
@@ -9,9 +10,9 @@ namespace Svelto.Tasks.Unity
     //single tasks, so they don't count (may change in future)
     /// </summary>
 
-    public class StaggeredMonoRunner : StaggeredMonoRunner<IEnumerator>, IRunner
+    public class StaggeredMonoRunner : StaggeredMonoRunner<IEnumerator>
     {
-        public StaggeredMonoRunner(string name, int maxTasksPerFrame) : base(name, maxTasksPerFrame)
+        public StaggeredMonoRunner(string name, int maxTasksPerFrame, bool mustSurvive = false) : base(name, maxTasksPerFrame, mustSurvive)
         {}
     }
     
@@ -19,18 +20,18 @@ namespace Svelto.Tasks.Unity
     {
         public StaggeredMonoRunner(string name, int maxTasksPerIteration, bool mustSurvive = false)
         {
-            _flushingOperation = new UnityCoroutineRunner.FlushingOperation();
+            _flushingOperation = new UnityCoroutineRunner<T>.FlushingOperation();
             
             UnityCoroutineRunner<T>.InitializeGameObject(name, ref _go, mustSurvive);
 
             var runnerBehaviour = _go.AddComponent<RunnerBehaviourUpdate>();
             var info = new StaggeredRunningInfo(maxTasksPerIteration) { runnerName = name };
 
-            runnerBehaviour.StartUpdateCoroutine(UnityCoroutineRunner<T>.Process
+            runnerBehaviour.StartUpdateCoroutine(new UnityCoroutineRunner<T>.Process
                 (_newTaskRoutines, _coroutines, _flushingOperation, info));
         }
 
-        class StaggeredRunningInfo : UnityCoroutineRunner.RunningTasksInfo
+        class StaggeredRunningInfo : UnityCoroutineRunner<T>.RunningTasksInfo
         {
             public StaggeredRunningInfo(float maxTasksPerIteration)
             {

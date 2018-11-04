@@ -15,9 +15,6 @@ namespace Svelto.Tasks
     
     public interface IRunner<T>: IRunnerInterface where T:IEnumerator
     {
-        void StartCoroutine(PausableTask<T> task);
+        void StartCoroutine(SveltoTask<T> task);
     }
-
-    public interface IRunner : IRunner<IEnumerator>
-    {}
 }

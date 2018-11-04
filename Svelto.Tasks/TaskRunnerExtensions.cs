@@ -1,12 +1,13 @@
 using Svelto.Tasks;
 using System.Collections;
+using System.Collections.Generic;
 using Svelto.Utilities;
 
 public static class TaskRunnerExtensions
 {
-    public static void RunOnSchedule(this IEnumerator enumerator, IRunner runner)
+    public static void RunOnScheduler(this IEnumerator enumerator, IRunner<IEnumerator> runner)
     {
-        TaskRunner.Instance.RunOnSchedule(runner, enumerator);
+        TaskRunner.Instance.RunOnScheduler(runner, enumerator);
     }
 
     public static void Run(this IEnumerator enumerator)
@@ -22,7 +23,7 @@ public static class TaskRunnerExtensions
             ThreadUtility.Wait(ref quickIterations);
     }
     
-    public static TaskRoutine<T> AllocateNewTaskRoutine<T>(this T enumerator, IRunner<T> runner) where T:IEnumerator
+    public static ref SveltoTask<T> ToTaskRoutine<T>(this T enumerator, IRunner<T> runner) where T:IEnumerator
     {
         return TaskRunner.Instance.AllocateNewTaskRoutine(runner).SetEnumeratorRef(ref enumerator);
     }

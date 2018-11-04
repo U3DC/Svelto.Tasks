@@ -6,9 +6,9 @@ using System.Collections;
 namespace Svelto.Tasks.Unity
 {
     ///
-    public class UpdateMonoRunner : UpdateMonoRunner<IEnumerator>, IRunner
+    public class UpdateMonoRunner : UpdateMonoRunner<IEnumerator>
     {
-        public UpdateMonoRunner(string name) : base(name)
+        public UpdateMonoRunner(string name, bool mustSurvive = false) : base(name, mustSurvive)
         {
         }
     }
@@ -16,13 +16,13 @@ namespace Svelto.Tasks.Unity
     {
         public UpdateMonoRunner(string name, bool mustSurvive = false)
         {
-            UnityCoroutineRunner.InitializeGameObject(name, ref _go, mustSurvive);
+            UnityCoroutineRunner<T>.InitializeGameObject(name, ref _go, mustSurvive);
 
             var runnerBehaviour = _go.AddComponent<RunnerBehaviourUpdate>();
             
-            var info = new UnityCoroutineRunner.StandardRunningTaskInfo { runnerName = name };
+            var info = new UnityCoroutineRunner<T>.StandardRunningTaskInfo { runnerName = name };
 
-            runnerBehaviour.StartUpdateCoroutine(new UnityCoroutineRunner.Process
+            runnerBehaviour.StartUpdateCoroutine(new UnityCoroutineRunner<T>.Process
                 (_newTaskRoutines, _coroutines, _flushingOperation, info));
         }
     }

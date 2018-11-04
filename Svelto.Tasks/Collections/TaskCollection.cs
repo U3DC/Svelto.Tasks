@@ -103,7 +103,10 @@ namespace Svelto.Tasks
             Reset();
         }
 
-        T IEnumerator<T>.Current => _currentTaskEnumerator;
+        T IEnumerator<T>.Current
+        {
+            get { return _currentTaskEnumerator; }
+        }
 
         public void Reset()
         {

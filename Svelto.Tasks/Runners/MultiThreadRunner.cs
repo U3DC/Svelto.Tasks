@@ -15,12 +15,12 @@ namespace Svelto.Tasks
     //The multithread runner always uses just one thread to run all the couroutines
     //If you want to use a separate thread, you will need to create another MultiThreadRunner
     
-    public class MultiThreadRunner : MultiThreadRunner<IEnumerator>, IRunner
+    public class MultiThreadRunner : MultiThreadRunner<IEnumerator>
     {
         public MultiThreadRunner(string name, int intervalInMS) : base(name, intervalInMS)
         {}
         
-        public MultiThreadRunner(string name) : base(name)
+        public MultiThreadRunner(string name, bool relaxed = false, bool tightTasks = false) : base(name, relaxed, tightTasks)
         {}
     }
         
@@ -68,10 +68,10 @@ namespace Svelto.Tasks
         public MultiThreadRunner(string name, bool relaxed = false, bool tightTasks = false)
         {
             var runnerData = new RunnerData(relaxed, 0, name, tightTasks);
-            
+
             Init(name, runnerData);
         }
-        
+
         /// <summary>
         /// Start a Multithread runner that won't take 100% of the CPU
         /// </summary>
@@ -80,7 +80,7 @@ namespace Svelto.Tasks
         public MultiThreadRunner(string name, float intervalInMs)
         {
             var runnerData = new RunnerData(true, intervalInMs, name, false);
-            
+
             Init(name, runnerData);
         }
 
@@ -97,8 +97,11 @@ namespace Svelto.Tasks
 #endif
         }
 
-        public void StartCoroutine(PausableTask<T> task)
+        public void StartCoroutine(SveltoTask<T> task)
         {
+            if (_runnerData == null)
+                throw new MultiThreadRunnerException("Trying to start a task on a killed runner");
+            
             paused = false;
 
             _runnerData._newTaskRoutines.Enqueue(task);
@@ -107,6 +110,9 @@ namespace Svelto.Tasks
 
         public void StopAllCoroutines()
         {
+            if (_runnerData == null)
+                throw new MultiThreadRunnerException("Trying to stop tasks on a killed runner");
+            
             _runnerData._newTaskRoutines.Clear();
             _runnerData._waitForFlush = true;
 
@@ -115,21 +121,26 @@ namespace Svelto.Tasks
 
         public void Kill(Action onThreadKilled)
         {
+            if (_runnerData == null)
+                throw new MultiThreadRunnerException("Trying to kill an already killed runner");
+            
             _runnerData.Kill(onThreadKilled);
+            _runnerData = null;
         }
 
         class RunnerData
         {
             public RunnerData(bool relaxed, float interval, string name, bool isRunningTightTasks)
             {
+
                 _mevent          = new ManualResetEventEx();
                 _watch           = new Stopwatch();
-                _coroutines      = new FasterList<PausableTask<T>>();
-                _newTaskRoutines = new ThreadSafeQueue<PausableTask<T>>();
+                _coroutines      = new FasterList<SveltoTask<T>>();
+                _newTaskRoutines = new ThreadSafeQueue<SveltoTask<T>>();
                 _interval        = (long) (interval * 10000);
                 _name             = name;
                 _isRunningTightTasks = isRunningTightTasks;
-                
+
                 if (relaxed)
                     LockingMechanism = RelaxedLockingMechanism;
                 else
@@ -141,29 +152,24 @@ namespace Svelto.Tasks
                 get
                 {
                     ThreadUtility.MemoryBarrier();
-                    
+
                     return _coroutines.Count;
                 }
             }
             void QuickLockingMechanism()
             {
                 var quickIterations = 0;
+                var frequency       = 1024;
 
-                while (Volatile.Read(ref _interlock) != 1 && quickIterations < 5000)
+                while (ThreadUtility.VolatileRead(ref _interlock) != 1 && quickIterations < 4096)
                 {
-                    //yielding here was slower on the 1 M points simulation
-                    if (quickIterations++ > 1000)
-                        ThreadUtility.Wait(quickIterations);
+                    ThreadUtility.Wait(ref quickIterations, frequency);
 
-                    if (Volatile.Read(ref _breakThread) == true)
+                    if (ThreadUtility.VolatileRead(ref _breakThread) == true)
                         return;
-
-                    //this is quite arbitrary at the moment as 
-                    //DateTime allocates a lot in UWP .Net Native
-                    //and stopwatch casues several issues
                 }
-                
-                if (_interlock == 0 && Volatile.Read(ref _breakThread) == false)
+
+                if (_interlock == 0 && ThreadUtility.VolatileRead(ref _breakThread) == false)
                     RelaxedLockingMechanism();
                 else
                     _interlock = 0;
@@ -183,9 +189,9 @@ namespace Svelto.Tasks
 
                 while (_watch.ElapsedTicks < _interval)
                 {
-                    ThreadUtility.Wait(quickIterations++);
+                    ThreadUtility.Wait(ref quickIterations);
 
-                    if (Volatile.Read(ref _breakThread) == true) return;
+                    if (ThreadUtility.VolatileRead(ref _breakThread) == true) return;
                 }
 
                 _watch.Reset();
@@ -193,11 +199,11 @@ namespace Svelto.Tasks
 
             internal void UnlockThread()
             {
-                    _interlock = 1;
+                _interlock = 1;
 
-                    _mevent.Set();
+                _mevent.Set();
 
-                    ThreadUtility.MemoryBarrier();
+                ThreadUtility.MemoryBarrier();
             }
 
             public void Kill(Action onThreadKilled)
@@ -228,13 +234,15 @@ namespace Svelto.Tasks
                         if (_newTaskRoutines.Count > 0 && false == _waitForFlush) //don't start anything while flushing
                             _newTaskRoutines.DequeueAllInto(_coroutines);
 
-                        for (var i = 0; i < _coroutines.Count && false == Volatile.Read(ref _breakThread); i++)
+                        for (var i = 0;
+                             i < _coroutines.Count && false == ThreadUtility.VolatileRead(ref _breakThread);
+                             i++)
                             using (platformProfiler.Sample(_coroutines[i].ToString()))
                                 StandardCoroutineProcess.StandardCoroutineIteration(ref i, _coroutines);
 
-                        if (Volatile.Read(ref _breakThread) == false)
+                        if (ThreadUtility.VolatileRead(ref _breakThread) == false)
                         {
-                            if (_interval > 0 && _waitForFlush == false) 
+                            if (_interval > 0 && _waitForFlush == false)
                                 WaitForInterval();
 
                             if (_coroutines.Count == 0)
@@ -242,16 +250,14 @@ namespace Svelto.Tasks
                                 _waitForFlush = false;
 
                                 if (_newTaskRoutines.Count == 0)
-                                {
-                                   LockingMechanism();
-                                }
+                                    LockingMechanism();
 
                                 ThreadUtility.MemoryBarrier();
                             }
                             else
                             {
                                 if (_isRunningTightTasks)
-                                    ThreadUtility.Yield();
+                                    ThreadUtility.Wait(ref _yieldingCount, 16);
                             }
                         }
                     }
@@ -263,30 +269,37 @@ namespace Svelto.Tasks
                     {
                         _mevent.Dispose();
                         _mevent = null;
-                        
+
                         ThreadUtility.MemoryBarrier();
                     }
                 }
             }
-            
-            public readonly ThreadSafeQueue<PausableTask<T>> _newTaskRoutines;
+           
+            public readonly ThreadSafeQueue<SveltoTask<T>> _newTaskRoutines;
             public volatile bool                           _waitForFlush;
 
             bool _breakThread;
             
-            readonly FasterList<PausableTask<T>> _coroutines;
+            readonly FasterList<SveltoTask<T>> _coroutines;
             readonly long                      _interval;
             readonly string                    _name;
             readonly bool                      _isRunningTightTasks;
-            
-            ManualResetEventEx _mevent;
-            Action             _onThreadKilled;
-            Stopwatch          _watch;
-            int                _interlock;
-            System.Action      LockingMechanism;
+
+            ManualResetEventEx     _mevent;
+            Action                 _onThreadKilled;
+            Stopwatch              _watch;
+            int                    _interlock;
+            readonly System.Action LockingMechanism;
+            int                    _yieldingCount;
         }
 
         string     _name;
         RunnerData _runnerData;
+    }
+
+    public class MultiThreadRunnerException : Exception
+    {
+        public MultiThreadRunnerException(string message): base(message)
+        {}
     }
 }

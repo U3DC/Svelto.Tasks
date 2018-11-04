@@ -5,9 +5,9 @@ namespace Svelto.Tasks.Internal
 {
     public sealed class PausableTaskPool
     {
-        public PausableTask RetrieveTaskFromPool()
+        public SveltoTask<> RetrieveTaskFromPool()
         {
-            PausableTask task;
+            SveltoTask<> task;
 
             if (_pool.Dequeue(out task))
                 return task;
@@ -15,18 +15,16 @@ namespace Svelto.Tasks.Internal
             return CreateEmptyTask();
         }
 
-        public void PushTaskBack(PausableTask task)
+        public void PushTaskBack(SveltoTask<> task)
         {
-            task.Reset();
-
             _pool.Enqueue(task);
         }
 
-        PausableTask CreateEmptyTask()
+        SveltoTask<> CreateEmptyTask()
         {
-            return new PausableTask(this);
+            return new SveltoTask<>(this);
         }
 
-        readonly LockFreeQueue<PausableTask> _pool = new LockFreeQueue<PausableTask>();
+        readonly LockFreeQueue<SveltoTask<>> _pool = new LockFreeQueue<SveltoTask<>>();
     }
 }

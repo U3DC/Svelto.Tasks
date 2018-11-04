@@ -1,4 +1,5 @@
 #if UNITY_5 || UNITY_5_3_OR_NEWER
+using System.Collections;
 using Svelto.Tasks.Unity;
 #endif
 
@@ -14,21 +15,21 @@ namespace Svelto.Tasks
         static UpdateMonoRunner _updateScheduler;
 #endif
 
-        public static IRunner multiThreadScheduler { get { if (_multiThreadScheduler == null) _multiThreadScheduler = new MultiThreadRunner("MultiThreadRunner", false);
+        public static IRunner<IEnumerator>  multiThreadScheduler { get { if (_multiThreadScheduler == null) _multiThreadScheduler = new MultiThreadRunner("MultiThreadRunner", false);
             return _multiThreadScheduler;
         } }
 
 #if UNITY_5 || UNITY_5_3_OR_NEWER
-        public static IRunner coroutineScheduler { get { if (_coroutineScheduler == null) _coroutineScheduler = new CoroutineMonoRunner("StandardCoroutineRunner", true);
+        public static IRunner<IEnumerator> coroutineScheduler { get { if (_coroutineScheduler == null) _coroutineScheduler = new CoroutineMonoRunner("StandardCoroutineRunner", true);
             return _coroutineScheduler;
         } }
-        public static IRunner physicScheduler { get { if (_physicScheduler == null) _physicScheduler = new PhysicMonoRunner("StandardPhysicRunner", true);
+        public static IRunner<IEnumerator> physicScheduler { get { if (_physicScheduler == null) _physicScheduler = new PhysicMonoRunner("StandardPhysicRunner", true);
             return _physicScheduler;
         } }
-        public static IRunner lateScheduler { get { if (_lateScheduler == null) _lateScheduler = new LateMonoRunner("StandardLateRunner", true);
+        public static IRunner<IEnumerator> lateScheduler { get { if (_lateScheduler == null) _lateScheduler = new LateMonoRunner("StandardLateRunner", true);
             return _lateScheduler;
         } }
-        public static IRunner updateScheduler { get { if (_updateScheduler == null) _updateScheduler = new UpdateMonoRunner("StandardMonoRunner", true);
+        public static IRunner<IEnumerator> updateScheduler { get { if (_updateScheduler == null) _updateScheduler = new UpdateMonoRunner("StandardMonoRunner", true);
             return _updateScheduler;
         } }
 #endif
