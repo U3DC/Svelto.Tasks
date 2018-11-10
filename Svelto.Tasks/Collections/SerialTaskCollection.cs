@@ -17,7 +17,7 @@ namespace Svelto.Tasks
 
     public class SerialTaskCollection<T>: TaskCollection<T> where T:IEnumerator
     {
-        const int _INITIAL_STACK_COUNT = 3;
+        const int _INITIAL_STACK_COUNT = 1;
         
         public SerialTaskCollection():base(_INITIAL_STACK_COUNT)
         {}

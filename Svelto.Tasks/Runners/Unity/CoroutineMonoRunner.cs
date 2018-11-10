@@ -129,7 +129,7 @@ namespace Svelto.Tasks.Unity
                         var coroutine = _runnerBehaviourForUnityCoroutine.StartCoroutine
                             (handItToUnity.GetEnumerator());
 
-                        (pausableTask as SveltoTask<>).onTaskHasBeenInterrupted += () =>
+                        pausableTask.onTaskHasBeenInterrupted += () =>
                                                                              {
                                                                                  _runnerBehaviourForUnityCoroutine
                                                                                     .StopCoroutine(coroutine);

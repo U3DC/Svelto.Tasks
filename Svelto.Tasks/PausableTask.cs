@@ -29,16 +29,16 @@ namespace Svelto.Tasks
 
     public struct ContinuationWrapper<T>:IEnumerator<T> where T:IEnumerator
     {
-        public ContinuationWrapper(SveltoTask<T> sveltoTask)
+        public ContinuationWrapper(SveltoTask<T> pausableTask)
         {
-            _sveltoTask = sveltoTask;
+            _pausableTask = pausableTask;
         }
         
         public bool MoveNext()
         {
             ThreadUtility.MemoryBarrier();
             
-            return _sveltoTask.isRunning;
+            return _pausableTask.isRunning;
         }
 
         public void Reset()
@@ -48,34 +48,109 @@ namespace Svelto.Tasks
 
         public T Current
         {
-            get { return _sveltoTask.Current; }
+            get { return _pausableTask.Current; }
         }
 
         object IEnumerator.Current { get { return null; } }
+
+        readonly SveltoTask<T> _pausableTask;
 
         public void Dispose()
         {
             throw new NotImplementedException();
         }
-        
-        readonly SveltoTask<T> _sveltoTask;
     }
 }
 
 namespace Svelto.Tasks
 {
-    public struct SveltoTask<T> : IEnumerator<TaskCollection<T>.CollectionTask>, IEnumerator<T> where T:IEnumerator
+    public struct TaskRoutine<T> : ITaskRoutine<T> where T:IEnumerator
+    {
+        internal TaskRoutine(SveltoTask<T> pausableTask)
+        {
+            _pausableTask = pausableTask;
+        }
+        
+        public TaskRoutine<T> SetEnumeratorProvider(Func<T> taskGenerator)
+        {
+            return _pausableTask.SetEnumeratorProvider(taskGenerator);
+        }
+
+        public TaskRoutine<T> SetEnumerator(T taskGenerator)
+        {
+            return _pausableTask.SetEnumerator(taskGenerator);
+        }
+
+        public ContinuationWrapper<T> Start(Action<PausableTaskException> onFail = null, Action onStop = null)
+        {
+            return (_pausableTask as ITaskRoutine<T>).Start(onFail, onStop);
+        }
+
+        public void Pause()
+        {
+            _pausableTask.Pause();
+        }
+
+        public void Resume()
+        {
+            _pausableTask.Resume();
+        }
+
+        public void Stop()
+        {
+            _pausableTask.Stop();
+        }
+
+        public bool isRunning
+        {
+            get { return _pausableTask.isRunning; }
+        }
+        
+        readonly SveltoTask<T> _pausableTask;
+    }
+
+    public class SveltoTask : SveltoTask<IEnumerator>
+    {
+        internal SveltoTask(PausableTaskPool pool):base()
+        {
+            _pool             = pool;
+        }
+        
+        /// <summary>
+        /// Reset task on reuse, when fetched from the Pool
+        /// </summary>
+        public new void Reset()
+        {
+            base.Recycle();
+        }
+
+        internal void Start()
+        {
+            InternalStart();
+        }
+        
+        internal void SetRunner(IRunner<IEnumerator> runner)
+        {
+            _runner = runner;
+        }
+
+        protected override bool OnComplete()
+        {
+            _pool.PushTaskBack(this);
+
+            return true;
+        }
+
+        readonly PausableTaskPool _pool;
+
+    }
+
+    public class SveltoTask<T> : IEnumerator<TaskCollection<T>.CollectionTask>, IEnumerator<T>, ITaskRoutine<T> where T:IEnumerator
     {
 #if DEBUG && !PROFILER        
         const string CALL_START_FIRST_ERROR = "Enumerating TaskRoutine without starting it, please call Start() first";
 #endif
-        internal SveltoTask(IRunner<T> runner) : this()
-        {
-            _coroutineWrapper    = new SerialTaskCollection<T>(1);
-            _continuationWrapper = new ContinuationWrapper<T>(this);
-            _name                = String.Empty;
-            _runner              = runner;
-        }
+        internal event Action onTaskHasBeenInterrupted;
 
         /// <summary>
         /// Calling SetScheduler, SetEnumeratorProvider, SetEnumerator
@@ -84,19 +159,23 @@ namespace Svelto.Tasks
         /// </summary>
         /// <param name="runner"></param>
         /// <returns></returns>
-        public void SetEnumeratorProvider(Func<T> taskGenerator)
+        public TaskRoutine<T> SetEnumeratorProvider(Func<T> taskGenerator)
         {
             _taskEnumerator = default(T);
             _taskGenerator = taskGenerator;
+
+            return new TaskRoutine<T>(this);
         }
         
-        public void SetEnumerator(T taskEnumerator)
+        public TaskRoutine<T> SetEnumerator(T taskEnumerator)
         {
             _taskGenerator = null;
             if (!(default(T) == null && (IEnumerator)_taskEnumerator == (IEnumerator)taskEnumerator))
                 _state.taskEnumeratorJustSet = true;
 
             _taskEnumerator = taskEnumerator;
+            
+            return new TaskRoutine<T>(this);
         }
         
         public void Pause()
@@ -139,7 +218,7 @@ namespace Svelto.Tasks
             get { return _state.isRunning; }
         }
 
-        public ContinuationWrapper<T> Start(Action<PausableTaskException> onFail = null, Action onStop = null)
+        ContinuationWrapper<T> ITaskRoutine<T>.Start(Action<PausableTaskException> onFail = null, Action onStop = null)
         {
             _onStop = onStop;
             _onFail = onFail;
@@ -147,6 +226,14 @@ namespace Svelto.Tasks
             InternalStart();
 
             return _continuationWrapper;
+        }
+        
+        public void Start(Action<PausableTaskException> onFail = null, Action onStop = null)
+        {
+            _onStop = onStop;
+            _onFail = onFail;
+            
+            InternalStart();
         }
         
         object IEnumerator.Current
@@ -193,7 +280,10 @@ namespace Svelto.Tasks
 
         bool isTaskEnumeratorValid
         {
-            get { if (default(T) == null) return _taskEnumerator != null; return true; }
+            get { if (default(T) == null)
+                    return _taskEnumerator != null;
+                return true;
+            }
         }
 
         /// <summary>
@@ -277,17 +367,22 @@ namespace Svelto.Tasks
 
             if (_state.completed == true && _state.syncPoint == false)
             {
-                if (_state.pendingRestart)
-                {
-                    Restart(_taskGenerator != null ? _taskGenerator() : _taskEnumerator);
-
-                    return true;
-                }
-
-                return false;
+                return OnComplete();
             }
 
             return true;
+        }
+
+        protected virtual bool OnComplete()
+        {
+            if (_state.pendingRestart)
+            {
+                Restart(_taskGenerator != null ? _taskGenerator() : _taskEnumerator);
+
+                return true;
+            }
+
+            return false;
         }
 
         /// <summary>
@@ -303,7 +398,7 @@ namespace Svelto.Tasks
             get { return (_coroutine as IEnumerator<T>).Current; }
         }
 
-        void Recycle()
+        protected void Recycle()
         {
             _state = new State();
 #if DEBUG        
@@ -327,15 +422,26 @@ namespace Svelto.Tasks
             _coroutineWrapper.Clear();
         }
 
+        internal SveltoTask()
+        {
+            _coroutineWrapper = new SerialTaskCollection<T>(1);
+            _continuationWrapper = new ContinuationWrapper<T>(this);
+        }
+
+        internal SveltoTask(IRunner<T> runner) : this()
+        {
+            _runner = runner;
+        }
+
         /// <summary>
-        /// A PausableTask cannot be recycled from the pool if hasn't been previously completed.
+        /// A SveltoTask cannot be recycled from the pool if hasn't been previously completed.
         /// A task can actually be restarted, but this will stop the previous enumeration, even if the enumerator didn't
         /// change.
         /// However since an enumerator can be enumerated on another runner a task cannot set as completed immediately,
         /// but it must wait for the next MoveNext. This is what the Pending logic is about.
         /// </summary>
         /// <param name="task"></param>
-        void InternalStart()
+        protected void InternalStart()
         {
             DBC.Tasks.Check.Require(_taskGenerator != null || isTaskEnumeratorValid == true , "An enumerator or enumerator provider is required to enable this function, please use SetEnumeratorProvider/SetEnumerator before to call start");
             
@@ -345,7 +451,7 @@ namespace Svelto.Tasks
                 Restart(_taskGenerator != null ? _taskGenerator() : _taskEnumerator);
         }
 
-        bool IsTaskStillEnumerating()
+        protected virtual bool IsTaskStillEnumerating()
         {
             ThreadUtility.MemoryBarrier();
 
@@ -397,15 +503,13 @@ namespace Svelto.Tasks
 
         T                             _taskEnumerator;
         Func<T>                       _taskGenerator;
-        
-        internal event Action         onTaskHasBeenInterrupted;
+
         Action<PausableTaskException> _onFail;
         Action                        _onStop;
         
         State                         _state;
-       
-        string                        _name;
 #if DEBUG        
+        string                        _name = String.Empty;
         string                        _callStartFirstError;
 #endif
         

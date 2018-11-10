@@ -24,9 +24,9 @@ namespace Svelto.Tasks
         /// <returns>
         /// New reusable TaskRoutine
         /// </returns>
-        public SveltoTask<T> AllocateNewTaskRoutine<T>(IRunner<T> runner) where T:IEnumerator
+        public TaskRoutine<T> AllocateNewTaskRoutine<T>(IRunner<T> runner) where T:IEnumerator
         {
-            return new SveltoTask<T>(runner);
+            return new TaskRoutine<T>(new SveltoTask<T>(runner));
         }
         
         public void PauseAllTasks()
