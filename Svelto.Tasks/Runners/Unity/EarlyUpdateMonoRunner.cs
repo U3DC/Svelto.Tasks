@@ -20,9 +20,9 @@ namespace Svelto.Tasks.Unity
 
             var runnerBehaviour = _go.GetComponent<RunnerBehaviourUpdate>();
 
-            var info = new UnityCoroutineRunner<T>.StandardRunningTaskInfo { runnerName = name };
+            var info = new UnityCoroutineRunner<T>.RunningTasksInfo() { runnerName = name };
 
-            runnerBehaviour.StartEarlyUpdateCoroutine(new UnityCoroutineRunner<T>.Process
+            runnerBehaviour.StartEarlyUpdateCoroutine(new UnityCoroutineRunner<T>.Process<UnityCoroutineRunner<T>.RunningTasksInfo>
                 (_newTaskRoutines, _coroutines, _flushingOperation, info));
         }
     }

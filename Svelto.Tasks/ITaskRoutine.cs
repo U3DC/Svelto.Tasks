@@ -1,6 +1,5 @@
 using System;
 using System.Collections;
-using System.Collections.Generic;
 
 //ITaskRoutine allocated explcitly have several features not 
 //available on task started implicitly with the extension
@@ -23,17 +22,59 @@ using System.Collections.Generic;
 
 namespace Svelto.Tasks
 {
-    public interface ITaskRoutine<T> where T:IEnumerator
+    public struct TaskRoutine<T> where T:IEnumerator
     {
-        TaskRoutine<T> SetEnumeratorProvider(Func<T> taskGenerator);
-        TaskRoutine<T> SetEnumerator(T taskGenerator);
-
-        ContinuationWrapper<T> Start(Action<PausableTaskException> onFail = null, Action onStop = null);
-     
-        void Pause();
-        void Resume();
-        void Stop();
+        internal TaskRoutine(SveltoTask<T> pausableTask)
+        {
+            _pausableTask = pausableTask;
+        }
         
-        bool isRunning { get; }
+        public TaskRoutine<T> SetEnumeratorProvider(Func<T> taskGenerator)
+        {
+            _pausableTask.SetEnumeratorProvider(taskGenerator);
+
+            return this;
+        }
+
+        public TaskRoutine<T> SetEnumerator(T taskGenerator)
+        {
+            _pausableTask.SetEnumerator(taskGenerator);
+            
+            return this;
+        }
+        
+        public TaskRoutine<T> SetScheduler(IRunner<T> runner)
+        {
+            _pausableTask.SetScheduler(runner);
+            
+            return this;
+        }
+
+        public ContinuationWrapper<T> Start(Action<PausableTaskException> onFail = null, Action onStop = null)
+        {
+            return _pausableTask.StartRoutine(onFail, onStop);
+        }
+        
+        public void Pause()
+        {
+            _pausableTask.Pause();
+        }
+
+        public void Resume()
+        {
+            _pausableTask.Resume();
+        }
+
+        public void Stop()
+        {
+            _pausableTask.Stop();
+        }
+
+        public bool isRunning
+        {
+            get { return _pausableTask.isRunning; }
+        }
+        
+        readonly SveltoTask<T> _pausableTask;
     }
 }

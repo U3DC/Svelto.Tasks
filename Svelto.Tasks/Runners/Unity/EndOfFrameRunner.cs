@@ -11,9 +11,9 @@ namespace Svelto.Tasks.Unity
             UnityCoroutineRunner<T>.InitializeGameObject(name, ref _go, mustSurvive);
 
             var runnerBehaviour = _go.AddComponent<RunnerBehaviourEndOfFrame>();
-            var info = new UnityCoroutineRunner<T>.StandardRunningTaskInfo() { runnerName = name };
+            var info = new UnityCoroutineRunner<T>.RunningTasksInfo() { runnerName = name };
 
-            runnerBehaviour.StartEndOfFrameCoroutine(new UnityCoroutineRunner<T>.Process
+            runnerBehaviour.StartEndOfFrameCoroutine(new UnityCoroutineRunner<T>.Process<UnityCoroutineRunner<T>.RunningTasksInfo>
                 (_newTaskRoutines, _coroutines, _flushingOperation, info));
         }
 

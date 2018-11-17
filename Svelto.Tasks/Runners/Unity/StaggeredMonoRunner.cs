@@ -27,20 +27,20 @@ namespace Svelto.Tasks.Unity
             var runnerBehaviour = _go.AddComponent<RunnerBehaviourUpdate>();
             var info = new StaggeredRunningInfo(maxTasksPerIteration) { runnerName = name };
 
-            runnerBehaviour.StartUpdateCoroutine(new UnityCoroutineRunner<T>.Process
+            runnerBehaviour.StartUpdateCoroutine(new UnityCoroutineRunner<T>.Process<StaggeredRunningInfo>
                 (_newTaskRoutines, _coroutines, _flushingOperation, info));
         }
 
-        class StaggeredRunningInfo : UnityCoroutineRunner<T>.RunningTasksInfo
+        class StaggeredRunningInfo : IRunningTasksInfo
         {
             public StaggeredRunningInfo(float maxTasksPerIteration)
             {
                 _maxTasksPerIteration = maxTasksPerIteration;
             }
             
-            public override bool CanMoveNext(ref int index, int count, object current)
+            public bool CanMoveNext(ref int nextIndex, object currentResult)
             {
-                if (_iterations >= _maxTasksPerIteration)
+                if (_iterations >= _maxTasksPerIteration - 1)
                 {
                     _iterations = 0;
 
@@ -52,10 +52,17 @@ namespace Svelto.Tasks.Unity
                 return true;
             }
 
-            public override void Reset()
+            public bool CanProcessThis(ref int index)
+            {
+                return true;
+            }
+
+            public void Reset()
             {
                 _iterations = 0;
             }
+
+            public string runnerName { get; set; }
 
             int _iterations;
             readonly float _maxTasksPerIteration;

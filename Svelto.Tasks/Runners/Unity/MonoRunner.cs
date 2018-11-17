@@ -1,13 +1,10 @@
 #if UNITY_5 || UNITY_5_3_OR_NEWER
 
+using System;
 using System.Collections;
 using Svelto.DataStructures;
 using Svelto.Tasks.Unity.Internal;
 using UnityEngine;
-
-#if TASKS_PROFILER_ENABLED
-using Svelto.Tasks.Profiler;
-#endif
 
 namespace Svelto.Tasks.Unity
 {
@@ -23,6 +20,7 @@ namespace Svelto.Tasks.Unity
     {
         public bool paused { set; get; }
         public bool isStopping { get { return _flushingOperation.stopped; } }
+        public bool isKilled { get {return _go == null;} }
         public int  numberOfRunningTasks { get { return _coroutines.Count; } }
         
         public GameObject _go;
@@ -57,6 +55,8 @@ namespace Svelto.Tasks.Unity
             StopAllCoroutines();
             
             GameObject.DestroyImmediate(_go);
+            _go = null;
+            GC.SuppressFinalize(this);
         }
         
         protected readonly ThreadSafeQueue<SveltoTask<T>> _newTaskRoutines = new ThreadSafeQueue<SveltoTask<T>>();

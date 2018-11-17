@@ -8,7 +8,9 @@ namespace Svelto.Tasks
     /// </summary>
 
     public class SyncRunner : SyncRunner<IEnumerator>
-    {}
+    {
+        public bool isKilled { get { return false; } }
+    }
 
     public class SyncRunner<T> : IRunner<T> where T:IEnumerator
     {
@@ -19,6 +21,7 @@ namespace Svelto.Tasks
         
         public bool paused     { get; set; }
         public bool isStopping { get; }
+        public bool isKilled { get; }
 
         /// TaskRunner doesn't stop executing tasks between scenes it's the final user responsibility to stop the
         /// tasks if needed

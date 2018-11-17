@@ -7,6 +7,7 @@ namespace Svelto.Tasks
     {
         bool paused     { get; set; }
         bool isStopping { get; }
+        bool    isKilled { get; }
 
         void StopAllCoroutines();
 

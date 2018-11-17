@@ -163,7 +163,7 @@ namespace Svelto.Tasks
             if (returnObject is IAsyncTask)
                 throw new ArgumentException("Svelto.Task 2.0 is not supporting IAsyncTask implicitly anymore, use AsyncTaskWrapper instead " + ToString()); 
 
-            if (returnObject is ITaskRoutine<T>)
+            if (returnObject is TaskRoutine<T>)
                 throw new ArgumentException("Returned a TaskRoutine without calling Start first " + ToString());
 #endif            
             //can be a compatible IEnumerator  

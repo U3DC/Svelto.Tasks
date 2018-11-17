@@ -26,4 +26,9 @@ public static class TaskRunnerExtensions
     {
         return TaskRunner.Instance.AllocateNewTaskRoutine(runner).SetEnumerator(enumerator);
     }
+    
+    public static TaskRoutine<IEnumerator> ToTaskRoutine(this IEnumerator enumerator)
+    {
+        return TaskRunner.Instance.AllocateNewTaskRoutine(TaskRunner.Instance.standardRunner).SetEnumerator(enumerator);
+    }
 }

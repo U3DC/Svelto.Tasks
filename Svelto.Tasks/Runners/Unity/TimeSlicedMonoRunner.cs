@@ -1,15 +1,16 @@
 #if UNITY_5 || UNITY_5_3_OR_NEWER
 using System.Collections;
 using System.Diagnostics;
+using Svelto.DataStructures;
 using Svelto.Tasks.Unity.Internal;
 
 namespace Svelto.Tasks.Unity
 {
     /// <summary>
-    ///TimeSlicedMonoRunner ensures that the tasks run up to the maxMilliseconds time. If a task takes less than it, the
-    ///next ones will be executed until maxMilliseconds is reached.
-    ///TimeSlicedMonoRunner can work on single tasks, this means that it would force the task to run up to maxMilliseconds
-    ///per frame, unless Break.AndResumeIteration is returned.
+    //TimeSlicedMonoRunner ensures that the tasks running run up to the maxMilliseconds time.
+    //If a task takes less than it, the next one will be executed and so on until maxMilliseconds is reached.
+    //TimeSlicedMonoRunner can work with one task only too, this means that it would force the task to run up
+    //to maxMilliseconds per frame, unless this returns Break.AndResumeIteration.
     /// </summary>
     
     public class TimeSlicedMonoRunner : TimeSlicedMonoRunner<IEnumerator>
@@ -24,7 +25,7 @@ namespace Svelto.Tasks.Unity
         {
             set
             {
-                _info.maxMilliseconds = (long) (value * 10000);
+                _info.maxTicks = (long) (value * 10000);
             }
         }
 
@@ -36,28 +37,26 @@ namespace Svelto.Tasks.Unity
 
             var runnerBehaviour = _go.AddComponent<RunnerBehaviourUpdate>();
             
-            _info = new GreedyTimeBoundRunningInfo(maxMilliseconds) { runnerName = name };
+            _info = new GreedyTimeBoundRunningInfo<T>(maxMilliseconds, _coroutines) { runnerName = name };
             
-            runnerBehaviour.StartUpdateCoroutine(new UnityCoroutineRunner<T>.Process
+            runnerBehaviour.StartUpdateCoroutine(new UnityCoroutineRunner<T>.Process<GreedyTimeBoundRunningInfo<T>>
                 (_newTaskRoutines, _coroutines, _flushingOperation, _info));
         }
 
-        class GreedyTimeBoundRunningInfo : UnityCoroutineRunner<T>.RunningTasksInfo
+        class GreedyTimeBoundRunningInfo<T> : IRunningTasksInfo where T:IEnumerator
         {
-            public long maxMilliseconds;
+            public long maxTicks;
 
-            public GreedyTimeBoundRunningInfo(float maxMilliseconds)
+            public GreedyTimeBoundRunningInfo(float maxMilliseconds, FasterList<SveltoTask<T>> coroutines)
             {
-                this.maxMilliseconds = (long) (maxMilliseconds * 10000);
+                this.maxTicks = (long) (maxMilliseconds * 10000);
+                _coroutines = coroutines;
             }
 
-            public override bool CanMoveNext(ref int index, int count, object current)
+            public bool CanMoveNext(ref int nextIndex, object currentResult)
             {
                 //never stops until maxMilliseconds is elapsed or Break.AndResumeNextIteration is returned
-                if (index == count)
-                    index = 0;
-
-                if (_stopWatch.ElapsedTicks > maxMilliseconds || current == Break.AndResumeNextIteration)
+                if (_stopWatch.ElapsedTicks > maxTicks)
                 {
                     _stopWatch.Reset();
                     _stopWatch.Start();
@@ -65,20 +64,42 @@ namespace Svelto.Tasks.Unity
                     return false;
                 }
                 
+                if (currentResult == Break.RunnerExecutionAndResumeNextIteration)
+                    mustInterruptAtTheEndOfTheIterations = true;
+                
+                if (nextIndex >= _coroutines.Count)
+                {
+                    if (mustInterruptAtTheEndOfTheIterations)
+                    {
+                        mustInterruptAtTheEndOfTheIterations = false;
+                        return false;
+                    }
+
+                    nextIndex = 0; //restart iteration and continue
+                }
+                
                 return true;
             }
 
-            public override void Reset()
+            public bool CanProcessThis(ref int index)
+            {
+                return true;
+            }
+
+            public void Reset()
             {
                 _stopWatch.Reset();
                 _stopWatch.Start();
             }
 
-            readonly Stopwatch _stopWatch = new Stopwatch();
+            public string runnerName { get; set; }
 
+            readonly Stopwatch _stopWatch = new Stopwatch();
+            readonly FasterList<SveltoTask<T>> _coroutines;
+            bool mustInterruptAtTheEndOfTheIterations;
         }
 
-        readonly GreedyTimeBoundRunningInfo _info;
+        readonly GreedyTimeBoundRunningInfo<T> _info;
     }
 }
 #endif

@@ -37,6 +37,11 @@ namespace Svelto.Tasks
             }
         }
 
+        public bool isKilled
+        {
+            get { return _runnerData == null; }
+        }
+
         public int numberOfRunningTasks
         {
             get { return _runnerData.Count; }
@@ -234,11 +239,28 @@ namespace Svelto.Tasks
                         if (_newTaskRoutines.Count > 0 && false == _waitForFlush) //don't start anything while flushing
                             _newTaskRoutines.DequeueAllInto(_coroutines);
 
-                        for (var i = 0;
-                             i < _coroutines.Count && false == ThreadUtility.VolatileRead(ref _breakThread);
-                             i++)
-                            using (platformProfiler.Sample(_coroutines[i].ToString()))
-                                StandardCoroutineProcess.StandardCoroutineIteration(ref i, _coroutines);
+                        SveltoTask<T> pausableTask;
+                        bool          result;
+                        
+                        for (var index = 0;
+                             index < _coroutines.Count && false == ThreadUtility.VolatileRead(ref _breakThread); index++)
+#if ENABLE_PLATFORM_PROFILER                            
+                            using (platformProfiler.Sample(_coroutines[index].ToString()))
+#endif
+                            {
+                                pausableTask = _coroutines[index];
+                                
+                                result = pausableTask.MoveNext();
+
+                                if (result == false)
+                                {
+                                    var disposable = pausableTask as IDisposable;
+                                    if (disposable != null)
+                                        disposable.Dispose();
+
+                                    _coroutines.UnorderedRemoveAt(index--);
+                                }
+                            }
 
                         if (ThreadUtility.VolatileRead(ref _breakThread) == false)
                         {

@@ -17,6 +17,8 @@ namespace Svelto.Tasks
                 return _instance;
             }
         }
+        
+        public IRunner<IEnumerator> standardRunner { get; private set; }
 
         /// <summary>
         /// Use this function only to preallocate TaskRoutine that can be reused. this minimize run-time allocations
@@ -29,24 +31,34 @@ namespace Svelto.Tasks
             return new TaskRoutine<T>(new SveltoTask<T>(runner));
         }
         
+        public TaskRoutine<IEnumerator> AllocateNewTaskRoutine(IRunner<IEnumerator> runner)
+        {
+            return new TaskRoutine<IEnumerator>(new SveltoTask<IEnumerator>(runner));
+        }
+        
+        public TaskRoutine<IEnumerator> AllocateNewTaskRoutine()
+        {
+            return new TaskRoutine<IEnumerator>(new SveltoTask<IEnumerator>(standardRunner));
+        }
+        
         public void PauseAllTasks()
         {
-            _runner.paused = true;
+            standardRunner.paused = true;
         }
 
         public void ResumeAllTasks()
         {
-            _runner.paused = false;
+            standardRunner.paused = false;
         }
 
         public void Run(IEnumerator task)
         {
-            RunOnScheduler(_runner, task);
+            RunOnScheduler(standardRunner, task);
         }
 
         public void RunOnScheduler(IRunner<IEnumerator> runner, IEnumerator task)
         {
-            (new SveltoTask<IEnumerator>(runner)).Start();
+            _taskPool.RetrieveTaskFromPool().SetEnumerator(task).SetScheduler(runner).Start();
         }
 
         public static void StopAndCleanupAllDefaultSchedulers()
@@ -56,7 +68,7 @@ namespace Svelto.Tasks
             if (_instance != null)
             {
                 _instance._taskPool = null;
-                _instance._runner   = null;
+                _instance.standardRunner   = null;
                 _instance = null;
             }
         }
@@ -65,7 +77,7 @@ namespace Svelto.Tasks
          {
             _instance = new TaskRunner();
 #if UNITY_5_3_OR_NEWER || UNITY_5
-            _instance._runner = StandardSchedulers.coroutineScheduler;
+            _instance.standardRunner = StandardSchedulers.coroutineScheduler;
 #else
             _instance._runner = new MultiThreadRunner("TaskThread");
 #endif
@@ -83,7 +95,6 @@ namespace Svelto.Tasks
 #endif
         }
 
-        IRunner<IEnumerator>     _runner;
-        PausableTaskPool         _taskPool;
+        PausableTaskPool             _taskPool;
     }
 }
