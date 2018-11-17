@@ -26,7 +26,7 @@ namespace Svelto.Tasks.Unity
 
     public class CoroutineMonoRunner<T> : MonoRunner<T> where T:IEnumerator
     {
-        public CoroutineMonoRunner(string name, bool mustSurvive = false)
+        public CoroutineMonoRunner(string name, bool mustSurvive = false):base(name)
         {
             _platformProfiler = new Svelto.Common.PlatformProfiler(name);
             UnityCoroutineRunner<T>.InitializeGameObject(name, ref _go, mustSurvive);

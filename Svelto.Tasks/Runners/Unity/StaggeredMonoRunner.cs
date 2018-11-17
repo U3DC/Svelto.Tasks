@@ -18,7 +18,7 @@ namespace Svelto.Tasks.Unity
     
     public class StaggeredMonoRunner<T> : MonoRunner<T> where T:IEnumerator
     {
-        public StaggeredMonoRunner(string name, int maxTasksPerIteration, bool mustSurvive = false)
+        public StaggeredMonoRunner(string name, int maxTasksPerIteration, bool mustSurvive = false):base(name)
         {
             _flushingOperation = new UnityCoroutineRunner<T>.FlushingOperation();
             

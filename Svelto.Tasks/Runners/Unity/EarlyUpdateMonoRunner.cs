@@ -14,7 +14,7 @@ namespace Svelto.Tasks.Unity
     
     public class EarlyUpdateMonoRunner<T> : MonoRunner<T> where T:IEnumerator
     {
-        public EarlyUpdateMonoRunner(UpdateMonoRunner<T> updateRunner, string name)
+        public EarlyUpdateMonoRunner(UpdateMonoRunner<T> updateRunner, string name) : base(name)
         {
             _go = updateRunner._go;
 
