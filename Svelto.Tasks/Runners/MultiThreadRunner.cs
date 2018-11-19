@@ -113,6 +113,11 @@ namespace Svelto.Tasks
             _runnerData.UnlockThread();
         }
 
+        public SerialTaskCollection<T> PrepareTask(T task)
+        {
+            throw new NotImplementedException();
+        }
+
         public void StopAllCoroutines()
         {
             if (_runnerData == null)

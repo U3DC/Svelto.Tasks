@@ -51,9 +51,6 @@ namespace Svelto.Tasks.Unity
         
         bool ExecuteFirstTaskStep(SveltoTask<T> task)
         {
-            if (task == null)
-                return false;
-
             //if the runner is not ready to run new tasks, it cannot run immediately but it must be saved
             //in the newTaskRoutines to be executed once possible
             if (isStopping == true)

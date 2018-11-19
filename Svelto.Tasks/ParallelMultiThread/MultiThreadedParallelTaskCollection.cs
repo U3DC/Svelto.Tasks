@@ -91,7 +91,7 @@ namespace Svelto.Tasks
         void InitializeThreadsAndData(uint numberOfThreads, bool tightTasks)
         {
             _runners       = new MultiThreadRunner<ParallelTaskCollection<T>>[numberOfThreads];
-            _taskRoutines  = new TaskRoutine<ParallelTaskCollection<T>>[numberOfThreads];
+            _taskRoutines  = new SveltoTask<ParallelTaskCollection<T>>[numberOfThreads];
             _parallelTasks = new ParallelTaskCollection<T>[numberOfThreads];
 
             //prepare a single multithread runner for each group of fiber like task collections
@@ -232,7 +232,7 @@ namespace Svelto.Tasks
 
         protected MultiThreadRunner<ParallelTaskCollection<T>>[]      _runners;
         ParallelTaskCollection<T>[] _parallelTasks;
-        TaskRoutine<ParallelTaskCollection<T>>[]           _taskRoutines;
+        SveltoTask<ParallelTaskCollection<T>>[]           _taskRoutines;
         
         int                           _numberOfTasksAdded;
         int                           _numberOfConcurrentOperationsToRun;

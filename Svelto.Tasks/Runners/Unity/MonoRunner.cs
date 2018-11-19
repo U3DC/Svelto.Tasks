@@ -2,6 +2,7 @@
 using System;
 using System.Collections;
 using Svelto.DataStructures;
+using Svelto.Tasks.Internal;
 using Svelto.Tasks.Unity.Internal;
 using UnityEngine;
 
@@ -57,6 +58,11 @@ namespace Svelto.Tasks.Unity
             _newTaskRoutines.Enqueue(task); //careful this could run on another thread!
         }
 
+        public SerialTaskCollection<T> PrepareTask(T task)
+        {
+            throw new NotImplementedException();
+        }
+
         public virtual void Dispose()
         {
             StopAllCoroutines();
@@ -67,11 +73,10 @@ namespace Svelto.Tasks.Unity
         }
         
         protected readonly ThreadSafeQueue<SveltoTask<T>> _newTaskRoutines = new ThreadSafeQueue<SveltoTask<T>>();
-        protected readonly FasterList<SveltoTask<T>> _coroutines =
-            new FasterList<SveltoTask<T>>(NUMBER_OF_INITIAL_COROUTINE);
+        protected readonly FasterList<SveltoTask<T>> _coroutines = new FasterList<SveltoTask<T>>(NUMBER_OF_INITIAL_COROUTINE);
+        protected readonly TaskStackPool<T> _taskStackPool = new TaskStackPool<T>();
         
-        protected UnityCoroutineRunner<T>.FlushingOperation _flushingOperation =
-            new UnityCoroutineRunner<T>.FlushingOperation();
+        protected UnityCoroutineRunner<T>.FlushingOperation _flushingOperation = new UnityCoroutineRunner<T>.FlushingOperation();
 
         string _name;
 

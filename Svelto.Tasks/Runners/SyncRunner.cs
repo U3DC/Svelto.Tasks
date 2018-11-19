@@ -1,4 +1,6 @@
 using System.Collections;
+using Svelto.Tasks.Internal;
+
 namespace Svelto.Tasks
 {
 
@@ -18,7 +20,12 @@ namespace Svelto.Tasks
         {
             task.Complete();
         }
-        
+
+        public SerialTaskCollection<T> PrepareTask(T task)
+        {
+            return serialTask.RetrieveTaskFromPool();
+        }
+
         public bool paused     { get; set; }
         public bool isStopping { get; }
         public bool isKilled { get; }
@@ -31,5 +38,7 @@ namespace Svelto.Tasks
 
         public void Dispose()
         {}
+
+        readonly TaskStackPool<T> serialTask = new TaskStackPool<T>();
     }
 }

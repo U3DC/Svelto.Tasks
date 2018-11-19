@@ -17,5 +17,6 @@ namespace Svelto.Tasks
     public interface IRunner<T>: IRunnerInterface where T:IEnumerator
     {
         void StartCoroutine(SveltoTask<T> task);
+        SerialTaskCollection<T> PrepareTask(T task);
     }
 }

@@ -1,5 +1,4 @@
 using System.Collections;
-using Svelto.Tasks.Internal;
 
 namespace Svelto.Tasks
 {
@@ -20,25 +19,22 @@ namespace Svelto.Tasks
         
         public IRunner<IEnumerator> standardRunner { get; private set; }
 
-        /// <summary>
-        /// Use this function only to preallocate TaskRoutine that can be reused. this minimize run-time allocations
-        /// </summary>
-        /// <returns>
-        /// New reusable TaskRoutine
-        /// </returns>
-        public TaskRoutine<T> AllocateNewTaskRoutine<T>(IRunner<T> runner) where T:IEnumerator
+        public SveltoTask<T> AllocateNewTaskRoutine<T>(IRunner<T> runner) where T:IEnumerator
         {
-            return new TaskRoutine<T>(new SveltoTask<T>(runner));
+            var sveltoTask = new SveltoTask<T>(runner);
+            return sveltoTask;
         }
         
-        public TaskRoutine<IEnumerator> AllocateNewTaskRoutine(IRunner<IEnumerator> runner)
+        public SveltoTask<IEnumerator> AllocateNewTaskRoutine(IRunner<IEnumerator> runner)
         {
-            return new TaskRoutine<IEnumerator>(new SveltoTask<IEnumerator>(runner));
+            var sveltoTask = new SveltoTask<IEnumerator>(runner);
+            return sveltoTask;
         }
         
-        public TaskRoutine<IEnumerator> AllocateNewTaskRoutine()
+        public SveltoTask<IEnumerator> AllocateNewTaskRoutine()
         {
-            return new TaskRoutine<IEnumerator>(new SveltoTask<IEnumerator>(standardRunner));
+            var sveltoTask = new SveltoTask<IEnumerator>(standardRunner);
+            return sveltoTask;
         }
         
         public void PauseAllTasks()
@@ -56,9 +52,11 @@ namespace Svelto.Tasks
             RunOnScheduler(standardRunner, task);
         }
 
-        public void RunOnScheduler(IRunner<IEnumerator> runner, IEnumerator task)
+        public void RunOnScheduler(IRunner<IEnumerator> runner, IEnumerator task) //todo may return continuationwrapper
         {
-            _taskPool.RetrieveTaskFromPool().SetEnumerator(task).SetScheduler(runner).Start();
+            var allocateNewTaskRoutine = AllocateNewTaskRoutine(runner);
+            allocateNewTaskRoutine.SetEnumerator(task);
+            allocateNewTaskRoutine.Start();
         }
 
         public static void StopAndCleanupAllDefaultSchedulers()
@@ -67,7 +65,6 @@ namespace Svelto.Tasks
 
             if (_instance != null)
             {
-                _instance._taskPool = null;
                 _instance.standardRunner   = null;
                 _instance = null;
             }
@@ -81,7 +78,6 @@ namespace Svelto.Tasks
 #else
             _instance._runner = new MultiThreadRunner("TaskThread");
 #endif
-            _instance._taskPool = new PausableTaskPool();
 
 //must still find the right place for this
 #if TASKS_PROFILER_ENABLED && UNITY_EDITOR
@@ -94,7 +90,5 @@ namespace Svelto.Tasks
             }
 #endif
         }
-
-        PausableTaskPool             _taskPool;
     }
 }

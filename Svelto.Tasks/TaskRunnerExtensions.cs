@@ -22,13 +22,17 @@ public static class TaskRunnerExtensions
             ThreadUtility.Wait(ref quickIterations);
     }
     
-    public static TaskRoutine<T> ToTaskRoutine<T>(this T enumerator, IRunner<T> runner) where T:IEnumerator
+    public static SveltoTask<T> ToTaskRoutine<T>(this T enumerator, IRunner<T> runner) where T:IEnumerator
     {
-        return TaskRunner.Instance.AllocateNewTaskRoutine(runner).SetEnumerator(enumerator);
+        var allocateNewTaskRoutine = TaskRunner.Instance.AllocateNewTaskRoutine(runner);
+        allocateNewTaskRoutine.SetEnumerator(enumerator);
+        return allocateNewTaskRoutine;
     }
     
-    public static TaskRoutine<IEnumerator> ToTaskRoutine(this IEnumerator enumerator)
+    public static SveltoTask<IEnumerator> ToTaskRoutine(this IEnumerator enumerator)
     {
-        return TaskRunner.Instance.AllocateNewTaskRoutine(TaskRunner.Instance.standardRunner).SetEnumerator(enumerator);
+        var allocateNewTaskRoutine = TaskRunner.Instance.AllocateNewTaskRoutine(TaskRunner.Instance.standardRunner);
+        allocateNewTaskRoutine.SetEnumerator(enumerator);
+        return allocateNewTaskRoutine;
     }
 }
